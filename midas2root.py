@@ -1,6 +1,8 @@
 import midas.file_reader
 
 MAX_MDPP16_CHANNELS = 16
+MAX_GRIF16_CHANNELS = 16
+
 
 def read_mdpp16_header(bank0data, show_header=True):
 
