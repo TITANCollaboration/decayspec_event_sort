@@ -1,4 +1,12 @@
-MAX_MDPP16_CHANNELS = 16
+# *************************************************************************************
+# Reads in data in MDPP format, you can find the complete docs with bit shceme @
+# https://www.mesytec.com/products/datasheets/MDPP-16_SCP-RCP.pdf
+# We are using it in RCP mode so there may be a difference or two if you are using it
+# in SCP mode
+# *************************************************************************************
+
+
+MAX_MDPP16_CHANNELS = 16  # This thing has 16 channels... so...
 
 
 def read_header(bank0data, show_header=True):
@@ -32,10 +40,10 @@ def read_single_event(bank_data, show_event=True):
     num_words_per_event = 2
     adc_value = -1
     tdc_value = -1
-#    chan = -1
-#    trigchan = -1
-
-    event_counter_slash_timestamp = -1
+    chan = -1
+    trigchan = -1
+    flags = 0
+    # event_counter_slash_timestamp = -1
     for current_word in range(num_words_per_event):
         data_sig = (bank_data[current_word] >> 30) & 0x3
 
@@ -47,17 +55,22 @@ def read_single_event(bank_data, show_event=True):
             adc_value = (bank_data[current_word] >> 0) & 0xFFFF
         if chan > MAX_MDPP16_CHANNELS and chan < (MAX_MDPP16_CHANNELS * 2) + 2:
             tdc_value = (bank_data[current_word] >> 0) & 0xFFFF
+
+    # Set values to object to return
+    myparticle_event = {"chan": chan, "pulse_height": adc_value, "timestamp": tdc_value, "flags": flags}
+
     if show_event is True:
         print("   ----Event----")
         print("     Sig : %i,  Channel : %i, - trigChan: %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, chan, trigchan, adc_value, tdc_value))
+    return myparticle_event
 
 
 def read_all_bank_events(bank_data):
-    # print("Woo!")  # One should always have time to Woo!  Do you woo!?
-    for data_pos in range(1, read_header(bank_data[0]) + 1, 2):  #  We have to words per event, one for ADC another for TDC
+    particle_events = []
+
+    for data_pos in range(1, read_header(bank_data[0], False) + 1, 2):  # We have to words per event, one for ADC another for TDC
         event_counter_slash_timestamp = test_for_footer(bank_data[data_pos])
         if event_counter_slash_timestamp == 0:
-            read_single_event([bank_data[data_pos], bank_data[data_pos + 1]])
-        else:
-            print("   ----FOOTER----")
-            print("     Event Counter_slash_timestamp : %i" % event_counter_slash_timestamp)
+            particle_events.append(read_single_event([bank_data[data_pos], bank_data[data_pos + 1]], False))
+        #    print("     Event Counter_slash_timestamp : %i" % event_counter_slash_timestamp)
+    return particle_events
