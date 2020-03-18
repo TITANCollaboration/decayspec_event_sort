@@ -24,7 +24,7 @@ MAX_GRIF16_CHANNELS = 16
 MAX_BUFFER_SIZE = -1
 
 
-def read_in_midas_file(midas_filename="run00233.mid.lz4", output_filename="justtesting.root"):
+def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesting.root"):
     particle_events = []
     num_entries = 0
     entries_read_in_buffer = 0
@@ -38,7 +38,7 @@ def read_in_midas_file(midas_filename="run00233.mid.lz4", output_filename="justt
     print("-----------")
     midas_file = midas.file_reader.MidasFile(midas_filename)
     for event in tqdm(midas_file, unit=' Events'):
-        if num_entries >= 4000:  # this is just in here to make testing easier..
+        if num_entries >= 400:  # this is just in here to make testing easier..
             break
         # print("\n----=BEGIN=----")
         # bank_names = ", ".join(b.name for b in event.banks.values())
@@ -48,7 +48,9 @@ def read_in_midas_file(midas_filename="run00233.mid.lz4", output_filename="justt
             if bank_name == "MDPP":
                 particle_events.extend(mdpp16.read_all_bank_events(bank.data))
             elif bank_name == "GRF4":
-                particle_events.extend(grif16.read_events(bank.data))
+                print("We got a GRIF16 event!!")
+                particle_events.extend(grif16.read_all_bank_events(bank.data))
+#                particle_events.extend(grif16.read_events(bank.data))
 
             if buffering is True and entries_read_in_buffer >= MAX_BUFFER_SIZE:
                 entries_read_in_buffer = -1
@@ -57,8 +59,12 @@ def read_in_midas_file(midas_filename="run00233.mid.lz4", output_filename="justt
 
         num_entries = num_entries + 1
         entries_read_in_buffer = entries_read_in_buffer + 1
+
     print("Particle Event count : %i" % len(particle_events))
-    write_particle_events(particle_events, output_filename)
+    if len(particle_events) != 0:
+        write_particle_events(particle_events, output_filename)
+    else:
+        print("No events found to write...")
     # return particle_events
         # print("----=END=----")
 

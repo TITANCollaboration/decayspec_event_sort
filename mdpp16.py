@@ -5,7 +5,6 @@
 # in SCP mode
 # *************************************************************************************
 
-
 MAX_MDPP16_CHANNELS = 16  # This thing has 16 channels... so...
 
 
@@ -16,13 +15,13 @@ def read_header(bank0data, show_header=True):
     mod_id = (bank0data >> 16) & 0xFF
     tdc_res = (bank0data >> 13) & 0x7
     adc_res = (bank0data >> 10) & 0x7
-    nword = (bank0data >> 0) & 0x3FF
+    numwords = (bank0data >> 0) & 0x3FF
 
     if show_header is True:
         print("   ----HEADER---- ")
         print("     hsig : %i  -  subhead : %i  - mod_id %i" % (hsig, subhead, mod_id))
         print("     tdc_res : %i  -  adc_res : %i  -  nword : %i" % (tdc_res, adc_res, nword))
-    return nword  # nword is the number of words in the bank
+    return numwords  # nword is the number of words in the bank
 
 
 def test_for_footer(word_data):
