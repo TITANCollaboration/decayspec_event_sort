@@ -15,7 +15,20 @@ def write_root_file(particle_events, output_filename):
     print("Writing ROOT file ...")
     pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
     # For more info on root_pandas : https://github.com/scikit-hep/root_pandas
-    pd_particle_events.to_root(output_filename, key='EVENT_TTREE')  # write out pandas dataframe to ROOT file, yup, that's it...
+    pd_particle_events.to_root(output_filename, key='EVENT_NTUPLE')  # write out pandas dataframe to ROOT file, yup, that's it...
+    return 0
+
+
+def show_histogram(particle_events):
+    import matplotlib as plt
+    import seaborn as sns
+
+    pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
+    myhist = pd_particle_events[pd_particle_events['chan'] == 0].hist(column='pulse_height', bins=1000)
+    plt.pyplot.show()
+    #myhist.plot()
+    #plt.show()
+    #return 0
 
 
 # *************************************************************************************
@@ -25,3 +38,5 @@ def write_root_file(particle_events, output_filename):
 def write_particle_events(particle_events, output_filename, format="ROOT"):
     if format == "ROOT":
         write_root_file(particle_events, output_filename)
+    if format == "HISTOGRAM":
+        show_histogram(particle_events)

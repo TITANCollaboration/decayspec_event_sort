@@ -6,7 +6,7 @@
 # *************************************************************************************
 
 MAX_MDPP16_CHANNELS = 16  # This thing has 16 channels... so...
-
+MDPP16_CHAN_PREFIX = 100
 
 def read_header(bank0data, show_header=True):
 
@@ -55,8 +55,8 @@ def read_single_event(bank_data, show_event=True):
         if chan > MAX_MDPP16_CHANNELS and chan < (MAX_MDPP16_CHANNELS * 2) + 2:
             tdc_value = (bank_data[current_word] >> 0) & 0xFFFF
 
-    # Set values to object to return
-    myparticle_event = {"chan": chan, "pulse_height": adc_value, "timestamp": tdc_value, "flags": flags}
+    # Set values to object to return, remember we are using a prefix of +100 for MDPP16 channel addressing
+    myparticle_event = {"chan": (chan + MDPP16_CHAN_PREFIX), "pulse_height": adc_value, "timestamp": tdc_value, "flags": flags}
 
     if show_event is True:
         print("   ----Event----")
