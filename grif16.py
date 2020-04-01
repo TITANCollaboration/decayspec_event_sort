@@ -7,9 +7,9 @@ GRIF16_CHAN_PREFIX = 0
 
 def read_header(bank0data, show_header=True):
     chan = -1
-    print(bank0data)
+    #print(bank0data)
     if ((bank0data & 0xF0000000) >> 28) == 8:
-        print("We have a Header!")
+        #print("We have a Header!")
         chan = (bank0data & 0xFFFF0) >> 4  # I think this is right....
 
     return chan  # nword is the number of words in the bank
@@ -62,9 +62,9 @@ def read_all_bank_events(bank_data):
     integrated_pulse_height = 0
     if integration_length != 0:
         integrated_pulse_height = pulse_height / integration_length
-    myparticle_event = {"chan": (chan + GRIF16_CHAN_PREFIX), "pulse_height": integrated_pulse_height, "timestamp": timestamp, "flags": pileup}
+        myparticle_event = {"chan": (chan + GRIF16_CHAN_PREFIX), "pulse_height": integrated_pulse_height, "timestamp": timestamp, "flags": pileup}
     #print("   !!! Integrated Pulse Height %i" % integrated_pulse_height)
-    particle_events.append(myparticle_event)
+        particle_events.append(myparticle_event)
 
-    print("Pileup : %i   -   Time stamp : %i" % (pileup, timestamp))
+    # print("Pileup : %i   -   Time stamp : %i" % (pileup, timestamp))
     return particle_events

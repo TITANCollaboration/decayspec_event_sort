@@ -3,7 +3,7 @@
 #  the data so other formats can easily be added.
 # *************************************************************************************
 import pandas as pd
-import root_pandas  # This is used for the to_root() method
+from root_pandas import to_root # This is used for the to_root() method
 
 
 # *************************************************************************************

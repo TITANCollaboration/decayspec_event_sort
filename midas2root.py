@@ -6,7 +6,7 @@
 #  * Requirements : Python 3, UpRoot, MIDAS, tqdm
 # *************************************************************************************
 
-
+import argparse
 import midas.file_reader
 import mdpp16
 import grif16
@@ -27,7 +27,7 @@ MAX_GRIF16_CHANNELS = 16
 MAX_BUFFER_SIZE = -1
 
 
-def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesting.root"):
+def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesting.root", output_format="ROOT"):
     particle_events = []
     num_entries = 0
     entries_read_in_buffer = 0
@@ -64,11 +64,32 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
 
     print("Particle Event count : %i" % len(particle_events))
     if len(particle_events) != 0:
-        write_particle_events(particle_events, output_filename, format="HISTOGRAM")
+        write_particle_events(particle_events, output_filename, output_format)
     else:
         print("No events found to write...")
     # return particle_events
         # print("----=END=----")
 
     return particle_events
-read_in_midas_file()
+
+
+def main():
+
+    parser = argparse.ArgumentParser(description='Geant4 Macro Scheduler')
+
+    parser.add_argument('--midas_file', dest='midas_file', required=True,
+                        help="Path to the Midas file to read.")
+    parser.add_argument('--output_file', dest='output_file', required=True,
+                        help="Path to output file")
+    parser.add_argument('--output_format', dest='output_format', required=False,
+                        help="Format : ROOT, HISTOGRAM (DEFAULT  : ROOT) (more to maybe come, or add your own!)")
+
+    parser.set_defaults(output_format="ROOT")
+
+    args, unknown = parser.parse_known_args()
+
+    read_in_midas_file(args.midas_file, args.output_file, args.output_format)
+
+
+if __name__ == "__main__":
+    main()
