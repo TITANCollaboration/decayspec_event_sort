@@ -33,7 +33,7 @@ def read_all_bank_events(bank_data):
     #print(bank_data)
     chan = read_header(bank_data[0])
     num_words = len(bank_data)
-    for data_pos in range(1, num_words):  # We have to words per event, one for ADC another for TDC
+    for data_pos in range(1, num_words):  # We have two words per event, one for ADC another for TDC
         #print("Data pos : %i - " % (data_pos + 1),  end='')
         data_sig = ((bank_data[data_pos] & 0xF0000000) >> 28)
         #print("Data Sig", hex(data_sig), " - ", bank_data[data_pos])
@@ -62,8 +62,8 @@ def read_all_bank_events(bank_data):
     integrated_pulse_height = 0
     if integration_length != 0:
         integrated_pulse_height = pulse_height / integration_length
-        myparticle_event = {"chan": (chan + GRIF16_CHAN_PREFIX), "pulse_height": integrated_pulse_height, "timestamp": timestamp, "flags": pileup}
-    #print("   !!! Integrated Pulse Height %i" % integrated_pulse_height)
+        myparticle_event = {"timestamp": timestamp, "chan": (chan + GRIF16_CHAN_PREFIX), "pulse_height": integrated_pulse_height, "flags": pileup}
+    #    print("TimeStamp %i   -  Pulse Height %i" % (timestamp, integrated_pulse_height))
         particle_events.append(myparticle_event)
 
     # print("Pileup : %i   -   Time stamp : %i" % (pileup, timestamp))

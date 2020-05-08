@@ -56,7 +56,7 @@ def read_single_event(bank_data, show_event=True):
             tdc_value = (bank_data[current_word] >> 0) & 0xFFFF
 
     # Set values to object to return, remember we are using a prefix of +100 for MDPP16 channel addressing
-    myparticle_event = {"chan": (chan + MDPP16_CHAN_PREFIX), "pulse_height": adc_value, "timestamp": tdc_value, "flags": flags}
+    myparticle_event = {"timestamp": tdc_value, "chan": (chan + MDPP16_CHAN_PREFIX), "pulse_height": adc_value, "flags": flags}
 
     if show_event is True:
         print("   ----Event----")
@@ -67,7 +67,7 @@ def read_single_event(bank_data, show_event=True):
 def read_all_bank_events(bank_data):
     particle_events = []
 
-    for data_pos in range(1, read_header(bank_data[0], False) + 1, 2):  # We have to words per event, one for ADC another for TDC
+    for data_pos in range(1, read_header(bank_data[0], False) + 1, 2):  # We have two words per event, one for ADC another for TDC
         event_counter_slash_timestamp = test_for_footer(bank_data[data_pos])
         if event_counter_slash_timestamp == 0:
             particle_events.append(read_single_event([bank_data[data_pos], bank_data[data_pos + 1]], False))
