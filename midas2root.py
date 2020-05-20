@@ -38,9 +38,8 @@ SORT_EVENTS = True
 EVENT_LENGTH = 20  # How long an temporal event can be,   we're just using ticks at the moment, maybe someone else wants to do some conversions!?!
 EVENT_EXTRA_GAP = 5  # number of ticks to check in addition to EVENT_LENGTH in case one is just hanging out
 
-# NOTE!! If event timestamps are out of order beyond MAX_BUFFER_SIZE blocks we will not detect those as events.  For this reason it is a good idea to make
-# MAX_BUFFER_SIZE large  >10,000,000 if you have the memory, probably ~100,000,000
-
+# NOTE!! If event timestamps are out of order in the MIDAS file then there is a chance we will miss events at the MAX_BUFFER_SIZE boundary.
+# So it is a good pratctice to set MAX_BUFFER_SIZE large, > 10,000,000
 
 def decode_raw_hit_event(adc_hit_reader_func, bank_data, checkpoint_EOB_timestamp, entries_read_in_buffer, end_of_tevent):
     particle_hit = adc_hit_reader_func(bank_data)
@@ -48,7 +47,6 @@ def decode_raw_hit_event(adc_hit_reader_func, bank_data, checkpoint_EOB_timestam
         if entries_read_in_buffer == MAX_BUFFER_SIZE:
             checkpoint_EOB_timestamp = particle_hit[-1]["timestamp"]
         if entries_read_in_buffer > MAX_BUFFER_SIZE:
-            print("Going past....")
             if (particle_hit[-1]["timestamp"] - checkpoint_EOB_timestamp) > (EVENT_LENGTH + EVENT_EXTRA_GAP):
                 end_of_tevent = True
     return particle_hit, checkpoint_EOB_timestamp, end_of_tevent
@@ -56,10 +54,10 @@ def decode_raw_hit_event(adc_hit_reader_func, bank_data, checkpoint_EOB_timestam
 
 def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesting.root", output_format="ROOT"):
     particle_hits = []
-    num_entries = 0
     entries_read_in_buffer = 0
     end_of_tevent = False
     checkpoint_EOB_timestamp = 0
+    particle_event_list = []
 
     if MAX_BUFFER_SIZE == -1:  # Probably going to always use buffering...
         buffering = False
@@ -69,11 +67,6 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
     print("-----------")
     midas_file = midas.file_reader.MidasFile(midas_filename)
     for hit in tqdm(midas_file, unit=' Hitss'):
-        #if num_entries >= 40000:  # this is just in here to make testing easier..
-        #        break
-        # print("\n----=BEGIN=----")
-        # bank_names = ", ".join(b.name for b in event.banks.values())
-        # print("Event # %s of type ID %s contains banks %s" % (event.header.serial_number, event.header.event_id, bank_names))
 
         for bank_name, bank in hit.banks.items():
             particle_hit = []
@@ -92,28 +85,23 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
                 checkpoint_EOB_timestamp = 0
                 end_of_tevent = False
                 if SORT_EVENTS is True:
-                    sort_events(particle_hits)
-
+                    particle_event_list.extend(sort_events(particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT))
                 entries_read_in_buffer = -1
                 #write_particle_events(particle_events, output_filename)
                 particle_hits = []
 
-        num_entries = num_entries + 1
         entries_read_in_buffer = entries_read_in_buffer + 1
 
-    print("Particle Event count : %i" % len(particle_hits))
     if len(particle_hits) != 0:
         print("We would normally write something here")
-        sort_events(particle_hits)
+        particle_event_list.extend(sort_events(particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT))
 
         #write_particle_events(particle_events, output_filename, output_format)
     else:
         print("No events found to write...")
-    # return particle_events
-        # print("----=END=----")
-
-#    return particle_hits
+    print("Event Count : %i" % len(particle_event_list))
     return 0
+
 
 def main():
 
