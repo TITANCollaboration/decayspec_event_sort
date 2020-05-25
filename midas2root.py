@@ -7,7 +7,6 @@
 # *************************************************************************************
 import sys
 sys.path.append('/usr/local/packages/midas/python')
-
 import argparse
 import midas.file_reader
 import mdpp16
@@ -15,8 +14,10 @@ import grif16
 import sys
 from tqdm import tqdm
 from event_handler import sort_events
+from multiprocessing import Process, Queue, active_children
+from output_handler import write_particle_events, open_root_file
+from time import sleep
 
-#from output_handler import write_particle_events
 
 MAX_GRIF16_CHANNELS = 16
 
@@ -29,7 +30,7 @@ MAX_GRIF16_CHANNELS = 16
 # Setting of 1 means I have no memory please write out each entry as you read it.
 # This won't be exact and won't take into account multiple events in an entry so... whatever.  This is basically
 # just a crude dial if you run into memory problems
-MAX_BUFFER_SIZE = 1000000  # One MILLION - A million events in memory is ~9MB
+MAX_BUFFER_SIZE = 100000  # One MILLION - A million events in memory is ~9MB
 MAX_HITS_PER_EVENT = 999  # Maximum number of hits allowed in an EVENT, after that we move on to a new event, this is mostly just a protection against EVENT_LENGTH or
                           # EVENT_EXTRA_GAP being too long causing a MASSIVE EVENT(it's funny because I only work with gammas)
 SORT_EVENTS = True
@@ -37,10 +38,10 @@ SORT_EVENTS = True
 # @ 125Mhz every 'tick' is 8ns
 EVENT_LENGTH = 20  # How long an temporal event can be,   we're just using ticks at the moment, maybe someone else wants to do some conversions!?!
 EVENT_EXTRA_GAP = 5  # number of ticks to check in addition to EVENT_LENGTH in case one is just hanging out
+PROCCESS_NUM_LIMIT = 2  # Max number of processess to spawn for sorting and potentially writing as well
 
 # NOTE!! If event timestamps are out of order in the MIDAS file then there is a chance we will miss events at the MAX_BUFFER_SIZE boundary.
 # So it is a good pratctice to set MAX_BUFFER_SIZE large, > 10,000,000
-
 def decode_raw_hit_event(adc_hit_reader_func, bank_data, checkpoint_EOB_timestamp, entries_read_in_buffer, end_of_tevent):
     particle_hit = adc_hit_reader_func(bank_data)
     if particle_hit:
@@ -58,6 +59,10 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
     end_of_tevent = False
     checkpoint_EOB_timestamp = 0
     particle_event_list = []
+    processes = []
+    current_process_count = 0
+    event_count = 0
+    event_queue = Queue()
 
     if MAX_BUFFER_SIZE == -1:  # Probably going to always use buffering...
         buffering = False
@@ -65,6 +70,7 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
         buffering = True
 
     print("-----------")
+    root_file_handle = open_root_file(output_filename)
     midas_file = midas.file_reader.MidasFile(midas_filename)
     for hit in tqdm(midas_file, unit=' Hitss'):
 
@@ -80,22 +86,41 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
                 particle_hits.extend(particle_hit)
 
             if buffering is True and entries_read_in_buffer >= MAX_BUFFER_SIZE and end_of_tevent is True:
-                print("SORTING!!")
-                # Need to find the events end..
-                checkpoint_EOB_timestamp = 0
-                end_of_tevent = False
-                if SORT_EVENTS is True:
-                    particle_event_list.extend(sort_events(particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT))
-                entries_read_in_buffer = -1
-                #write_particle_events(particle_events, output_filename)
-                particle_hits = []
+                if len(active_children()) < PROCCESS_NUM_LIMIT:  # Check if we are maxing out process # limit
+                    #current_process_count = current_process_count + 1
+                    checkpoint_EOB_timestamp = 0
+                    end_of_tevent = False
+                    if SORT_EVENTS is True:
+                        p = Process(target=sort_events, args=(event_queue, particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT), daemon=False)
+                        processes.append(p)
+                        p.start()
+                        current_process_count = current_process_count + 1
+                    entries_read_in_buffer = -1
+                    particle_hits = []
+                    print("Active childeren : ", len(active_children()))
+                if len(active_children()) == PROCCESS_NUM_LIMIT:
+                    while True:
+                        if event_queue.qsize() == current_process_count:
+                            break
+                        sleep(.1)
+                    while event_queue.qsize() > 0:
+                        particle_event_list.extend(event_queue.get())
+                    for proc in processes:
+                        proc.join()
+                    current_process_count = 0
+                    #  write out the queue here! or at least empty the queue into a new buffer... but might as well dump it
+                    write_particle_events(particle_event_list, root_file_handle)
+                    particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 
         entries_read_in_buffer = entries_read_in_buffer + 1
-
+    print("We're out of the main loop now")
     if len(particle_hits) != 0:
-        print("We would normally write something here")
-        particle_event_list.extend(sort_events(particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT))
+        sort_events(event_queue, particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT)
+        while event_queue.qsize() > 0:
+            particle_event_list.extend(event_queue.get())
+        write_particle_events(particle_event_list, root_file_handle)
 
+        #write out queue
         #write_particle_events(particle_events, output_filename, output_format)
     else:
         print("No events found to write...")

@@ -32,7 +32,6 @@ def test_for_footer(word_data):
     else:
         return 0
 
-
 def read_single_event(bank_data, show_event=True):
     #  I think I'm going to read these things in pairs as that is what they are.. besides the footer.  I will check
     #  that in the read_all_bank_events
@@ -62,7 +61,6 @@ def read_single_event(bank_data, show_event=True):
         print("   ----Event----")
         print("     Sig : %i,  Channel : %i, - trigChan: %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, chan, trigchan, adc_value, tdc_value))
     return myparticle_event
-
 
 def read_all_bank_events(bank_data):
     particle_events = []
