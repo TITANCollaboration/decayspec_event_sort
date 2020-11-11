@@ -30,15 +30,15 @@ MAX_GRIF16_CHANNELS = 16
 # Setting of 1 means I have no memory please write out each entry as you read it.
 # This won't be exact and won't take into account multiple events in an entry so... whatever.  This is basically
 # just a crude dial if you run into memory problems
-MAX_BUFFER_SIZE = 100000  # One MILLION - A million events in memory is ~9MB
+MAX_BUFFER_SIZE = 10000000  # One MILLION - A million events in memory is ~9MB
 MAX_HITS_PER_EVENT = 999  # Maximum number of hits allowed in an EVENT, after that we move on to a new event, this is mostly just a protection against EVENT_LENGTH or
                           # EVENT_EXTRA_GAP being too long causing a MASSIVE EVENT(it's funny because I only work with gammas)
 SORT_EVENTS = True
 
 # @ 125Mhz every 'tick' is 8ns
-EVENT_LENGTH = 20  # How long an temporal event can be,   we're just using ticks at the moment, maybe someone else wants to do some conversions!?!
+EVENT_LENGTH = 20000  # How long an temporal event can be,   we're just using ticks at the moment, maybe someone else wants to do some conversions!?!
 EVENT_EXTRA_GAP = 5  # number of ticks to check in addition to EVENT_LENGTH in case one is just hanging out
-PROCCESS_NUM_LIMIT = 2  # Max number of processess to spawn for sorting and potentially writing as well
+PROCCESS_NUM_LIMIT = 1  # Max number of processess to spawn for sorting and potentially writing as well
 
 # NOTE!! If event timestamps are out of order in the MIDAS file then there is a chance we will miss events at the MAX_BUFFER_SIZE boundary.
 # So it is a good pratctice to set MAX_BUFFER_SIZE large, > 10,000,000
@@ -53,7 +53,8 @@ def decode_raw_hit_event(adc_hit_reader_func, bank_data, checkpoint_EOB_timestam
     return particle_hit, checkpoint_EOB_timestamp, end_of_tevent
 
 
-def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesting.root", output_format="ROOT"):
+def read_in_midas_file(midas_filename, output_filename, output_format, event_length):
+    root_file_handle = None
     particle_hits = []
     entries_read_in_buffer = 0
     end_of_tevent = False
@@ -69,8 +70,12 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
     else:
         buffering = True
 
+    if event_length is not None:
+        EVENT_LENGTH = event_length
+        print("Event Lenght!", event_length)
     print("-----------")
-    root_file_handle = open_root_file(output_filename)
+    if output_format.upper() == "ROOT":
+        root_file_handle = open_root_file(output_filename)
     midas_file = midas.file_reader.MidasFile(midas_filename)
     for hit in tqdm(midas_file, unit=' Hitss'):
 
@@ -109,7 +114,7 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
                         proc.join()
                     current_process_count = 0
                     #  write out the queue here! or at least empty the queue into a new buffer... but might as well dump it
-                    write_particle_events(particle_event_list, root_file_handle)
+                    write_particle_events(particle_event_list, root_file_handle, output_filename, output_format)
                     particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 
         entries_read_in_buffer = entries_read_in_buffer + 1
@@ -118,7 +123,7 @@ def read_in_midas_file(midas_filename="run24286.mid", output_filename="justtesti
         sort_events(event_queue, particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT)
         while event_queue.qsize() > 0:
             particle_event_list.extend(event_queue.get())
-        write_particle_events(particle_event_list, root_file_handle)
+        write_particle_events(particle_event_list, root_file_handle, output_filename, output_format)
 
         #write out queue
         #write_particle_events(particle_events, output_filename, output_format)
@@ -136,6 +141,8 @@ def main():
                         help="Path to the Midas file to read.")
     parser.add_argument('--output_file', dest='output_file', required=True,
                         help="Path to output file")
+    parser.add_argument('--event_length', dest='event_length', type=int, required=False,
+                        help="Set length of event window, done in ticks @ 125Mhz, 1 tick == 0.001ms")
     parser.add_argument('--output_format', dest='output_format', required=False,
                         help="Format : ROOT, HISTOGRAM (DEFAULT  : ROOT) (more to maybe come, or add your own!)")
 
@@ -143,7 +150,7 @@ def main():
 
     args, unknown = parser.parse_known_args()
 
-    read_in_midas_file(args.midas_file, args.output_file, args.output_format)
+    read_in_midas_file(args.midas_file, args.output_file, args.output_format, args.event_length)
 
 
 if __name__ == "__main__":
