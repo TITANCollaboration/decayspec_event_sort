@@ -38,10 +38,10 @@ def extend_hdf_file(particle_events, file_name):
     pd_particle_events.to_hdf(file_name, key='stage', mode='a')
 
 
-def extend_csv_file(particle_events, file_name):
+def extend_csv_file(particle_events, file_name, first_write):
     print("Going to write CSV file!")
     pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
-    pd_particle_events.to_csv(file_name, sep='|', header=True, index=False, chunksize=50000, mode='a', encoding='utf-8')
+    pd_particle_events.to_csv(file_name, sep='|', header=first_write, index=False, chunksize=50000, mode='a', encoding='utf-8')
 
 
 def open_root_file(output_filename):
@@ -69,7 +69,7 @@ def show_histogram(particle_events):
 # write_particle_events()
 # Determine what file type is chosen, default to ROOT and select the appropriate function
 # *************************************************************************************
-def write_particle_events(particle_events, file_handle, file_name, format="ROOT"):
+def write_particle_events(particle_events, file_handle, file_name, format, first_write):
     if format.upper() == "ROOT":
     #    print("hi")
         extend_root_file(particle_events, file_handle)
@@ -78,4 +78,4 @@ def write_particle_events(particle_events, file_handle, file_name, format="ROOT"
     if format == "HDF5":
         extend_hdf_file(particle_events, file_name)
     if format.upper() == "CSV":
-        extend_csv_file(particle_events, file_name)
+        extend_csv_file(particle_events, file_name, first_write)

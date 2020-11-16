@@ -30,7 +30,7 @@ MAX_GRIF16_CHANNELS = 16
 # Setting of 1 means I have no memory please write out each entry as you read it.
 # This won't be exact and won't take into account multiple events in an entry so... whatever.  This is basically
 # just a crude dial if you run into memory problems
-MAX_BUFFER_SIZE = 10000000  # One MILLION - A million events in memory is ~9MB
+MAX_BUFFER_SIZE = 1000000  # One MILLION - A million events in memory is ~9MB
 MAX_HITS_PER_EVENT = 999  # Maximum number of hits allowed in an EVENT, after that we move on to a new event, this is mostly just a protection against EVENT_LENGTH or
                           # EVENT_EXTRA_GAP being too long causing a MASSIVE EVENT(it's funny because I only work with gammas)
 SORT_EVENTS = True
@@ -53,8 +53,10 @@ def decode_raw_hit_event(adc_hit_reader_func, bank_data, checkpoint_EOB_timestam
     return particle_hit, checkpoint_EOB_timestamp, end_of_tevent
 
 
-def read_in_midas_file(midas_filename, output_filename, output_format, event_length):
+def read_in_midas_file(midas_filename, output_filename, output_format, event_length, raw):
     root_file_handle = None
+    SORT_EVENTS = True
+
     particle_hits = []
     entries_read_in_buffer = 0
     end_of_tevent = False
@@ -64,11 +66,17 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
     current_process_count = 0
     event_count = 0
     event_queue = Queue()
+    first_write = True  # Have we written to the file previously which could have given it a header
 
     if MAX_BUFFER_SIZE == -1:  # Probably going to always use buffering...
         buffering = False
     else:
         buffering = True
+    print("Raw", raw)
+    if raw == 1:
+        print("Running in RAW mode")
+        SORT_EVENTS = False
+
 
     if event_length is not None:
         EVENT_LENGTH = event_length
@@ -89,7 +97,6 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
 
             if particle_hit:
                 particle_hits.extend(particle_hit)
-
             if buffering is True and entries_read_in_buffer >= MAX_BUFFER_SIZE and end_of_tevent is True:
                 if len(active_children()) < PROCCESS_NUM_LIMIT:  # Check if we are maxing out process # limit
                     #current_process_count = current_process_count + 1
@@ -101,7 +108,13 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
                         p.start()
                         current_process_count = current_process_count + 1
                     entries_read_in_buffer = -1
-                    particle_hits = []
+                    if raw != 1:
+                        particle_hits = []
+                    else:
+                        print("Writing RAW data")
+                        write_particle_events(particle_hits, root_file_handle, output_filename, output_format)
+                        particle_hits = []
+
                     print("Active childeren : ", len(active_children()))
                 if len(active_children()) == PROCCESS_NUM_LIMIT:
                     while True:
@@ -114,21 +127,35 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
                         proc.join()
                     current_process_count = 0
                     #  write out the queue here! or at least empty the queue into a new buffer... but might as well dump it
-                    write_particle_events(particle_event_list, root_file_handle, output_filename, output_format)
+                    if raw == 1:
+                        print("Writing RAW data")
+                        write_particle_events(particle_hits, root_file_handle, output_filename, output_format, first_write)
+                        particle_hits = []
+
+                    else:
+                        write_particle_events(particle_event_list, root_file_handle, output_filename, output_format, first_write)
+                    first_write = False
                     particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 
         entries_read_in_buffer = entries_read_in_buffer + 1
     print("We're out of the main loop now")
-    if len(particle_hits) != 0:
-        sort_events(event_queue, particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT)
-        while event_queue.qsize() > 0:
-            particle_event_list.extend(event_queue.get())
-        write_particle_events(particle_event_list, root_file_handle, output_filename, output_format)
-
-        #write out queue
-        #write_particle_events(particle_events, output_filename, output_format)
+    if raw == 1:
+        print("Writing RAW data")
+        write_particle_events(particle_hits, root_file_handle, output_filename, output_format)
     else:
-        print("No events found to write...")
+        if len(particle_hits) != 0:
+            if SORT_EVENTS is True:
+                sort_events(event_queue, particle_hits, EVENT_LENGTH, EVENT_EXTRA_GAP, MAX_HITS_PER_EVENT)
+                while event_queue.qsize() > 0:
+                    particle_event_list.extend(event_queue.get())
+                    write_particle_events(particle_event_list, root_file_handle, output_filename, output_format, first_write)
+            else:
+                write_particle_events(particle_hits, root_file_handle, output_filename, output_format, first_write)
+
+            #write out queue
+            #write_particle_events(particle_events, output_filename, output_format)
+        else:
+            print("No events found to write...")
     print("Event Count : %i" % len(particle_event_list))
     return 0
 
@@ -145,12 +172,13 @@ def main():
                         help="Set length of event window, done in ticks @ 125Mhz, 1 tick == 0.001ms")
     parser.add_argument('--output_format', dest='output_format', required=False,
                         help="Format : ROOT, HISTOGRAM (DEFAULT  : ROOT) (more to maybe come, or add your own!)")
+    parser.add_argument('--raw', dest='raw',  type=int, required=False,
+                        help="Output RAW data only, only testing with CSV")
 
     parser.set_defaults(output_format="ROOT")
 
     args, unknown = parser.parse_known_args()
-
-    read_in_midas_file(args.midas_file, args.output_file, args.output_format, args.event_length)
+    read_in_midas_file(args.midas_file, args.output_file, args.output_format, args.event_length, args.raw)
 
 
 if __name__ == "__main__":
