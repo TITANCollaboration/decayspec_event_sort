@@ -110,10 +110,10 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
                     entries_read_in_buffer = -1
                     if raw != 1:
                         particle_hits = []
-                    else:
-                        print("Writing RAW data")
-                        write_particle_events(particle_hits, root_file_handle, output_filename, output_format)
-                        particle_hits = []
+        #            else:
+        #                print("Writing RAW data")
+        #                write_particle_events(particle_hits, root_file_handle, output_filename, output_format, first_write)
+        #                particle_hits = []
 
                     print("Active childeren : ", len(active_children()))
                 if len(active_children()) == PROCCESS_NUM_LIMIT:
