@@ -8,6 +8,7 @@ import pandas as pd
 import uproot
 import awkward
 import numpy
+import csv
 
 # *************************************************************************************
 # write_root_file()
@@ -38,10 +39,23 @@ def extend_hdf_file(particle_events, file_name):
     pd_particle_events.to_hdf(file_name, key='stage', mode='a')
 
 
-def extend_csv_file(particle_events, file_name, first_write):
-    print("Going to write CSV file!")
+def extend_csv_file_pandas(particle_events, file_name, first_write):
+    print(particle_events[0:10])
+    print("Converting to Pandas Dataframe")
     pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
+    print("Writing to CSV file :", file_name)
+
     pd_particle_events.to_csv(file_name, sep='|', header=first_write, index=False, chunksize=50000, mode='a', encoding='utf-8')
+
+
+def extend_csv_file(particle_events, file_name, first_write):
+    print("Writing to CSV file :", file_name)
+    column_names = ['timestamp', 'chan', 'pulse_height', 'flags']
+    with open(file_name, 'a', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=column_names, delimiter='|')
+        writer.writeheader()
+        for data in particle_events:
+            writer.writerow(data)
 
 
 def open_root_file(output_filename):

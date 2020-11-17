@@ -72,11 +72,9 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
         buffering = False
     else:
         buffering = True
-    print("Raw", raw)
     if raw == 1:
-        print("Running in RAW mode")
+        print("Running in RAW output mode")
         SORT_EVENTS = False
-
 
     if event_length is not None:
         EVENT_LENGTH = event_length
@@ -108,14 +106,13 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
                         p.start()
                         current_process_count = current_process_count + 1
                     entries_read_in_buffer = -1
-                    if raw != 1:
-                        particle_hits = []
-        #            else:
-        #                print("Writing RAW data")
-        #                write_particle_events(particle_hits, root_file_handle, output_filename, output_format, first_write)
-        #                particle_hits = []
+                if raw == 1:
+                    print("\nWriting RAW data")
+                    write_particle_events(particle_hits, root_file_handle, output_filename, output_format, first_write)
+                    first_write = False
+                    particle_hits = []
 
-                    print("Active childeren : ", len(active_children()))
+                    print("\nActive childeren : ", len(active_children()))
                 if len(active_children()) == PROCCESS_NUM_LIMIT:
                     while True:
                         if event_queue.qsize() == current_process_count:
@@ -127,21 +124,17 @@ def read_in_midas_file(midas_filename, output_filename, output_format, event_len
                         proc.join()
                     current_process_count = 0
                     #  write out the queue here! or at least empty the queue into a new buffer... but might as well dump it
-                    if raw == 1:
-                        print("Writing RAW data")
-                        write_particle_events(particle_hits, root_file_handle, output_filename, output_format, first_write)
-                        particle_hits = []
-
-                    else:
-                        write_particle_events(particle_event_list, root_file_handle, output_filename, output_format, first_write)
+                    write_particle_events(particle_event_list, root_file_handle, output_filename, output_format, first_write)
                     first_write = False
+                    particle_hits = []
+
                     particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 
         entries_read_in_buffer = entries_read_in_buffer + 1
     print("We're out of the main loop now")
     if raw == 1:
         print("Writing RAW data")
-        write_particle_events(particle_hits, root_file_handle, output_filename, output_format)
+        write_particle_events(particle_hits, root_file_handle, output_filename, output_format, first_write)
     else:
         if len(particle_hits) != 0:
             if SORT_EVENTS is True:

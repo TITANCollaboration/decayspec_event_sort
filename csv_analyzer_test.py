@@ -16,12 +16,9 @@ df = pd.read_csv(args.csv_file, sep='|')
 prev_timestamp = 0
 for (columnName, timestamp) in df['timestamp'].iteritems():
     try:
-        if (int(prev_timestamp) - int(timestamp)) > 100:
-            print("We had a problem between timestamp %i and %i" % (int(prev_timestamp), int(timestamp)))
+        if (prev_timestamp - timestamp) > 100:
+            print("We had a problem between timestamp %i and %i" % (prev_timestamp, timestamp))
         prev_timestamp = timestamp
     except:
         print("!!!Problem with timestamp: ", timestamp, " Or Prev : ", prev_timestamp)
         break
-
-We had a problem between timestamp 4398045432370 and 212035 #3966643
-We had a problem between timestamp 4398045460379 and 949183  #7599557
