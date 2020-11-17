@@ -40,6 +40,7 @@ def extend_hdf_file(particle_events, file_name):
 
 
 def extend_csv_file_pandas(particle_events, file_name, first_write):
+    # while simple this is rather slow and memory intensive, especially the converting to pandas part
     print(particle_events[0:10])
     print("Converting to Pandas Dataframe")
     pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
@@ -53,7 +54,8 @@ def extend_csv_file(particle_events, file_name, first_write):
     column_names = ['timestamp', 'chan', 'pulse_height', 'flags']
     with open(file_name, 'a', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=column_names, delimiter='|')
-        writer.writeheader()
+        if first_write is True:
+            writer.writeheader()
         for data in particle_events:
             writer.writerow(data)
 
