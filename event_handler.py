@@ -1,6 +1,8 @@
 import operator
 
 
+# class event_handler:
+
 def sort_events(event_queue, particle_hit_list, event_length, event_extra_gap, max_hits_per_event):
     particle_event_list = []
     particle_hit_list = sorted(particle_hit_list, key=operator.itemgetter('timestamp'))
