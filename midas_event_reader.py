@@ -12,7 +12,7 @@ from output_handler import output_handler
 
 class midas_events:
 
-    def __init__(self, event_length, sort_type, midas_file, output_file, output_format):
+    def __init__(self, event_length, sort_type, midas_file, output_file, output_format, cores, buffer_size):
         self.sort_type = sort_type
         self.midas_file = midas_file
         self.output_file = output_file
@@ -30,7 +30,7 @@ class midas_events:
         # Setting of 1 means I have no memory please write out each entry as you read it.
         # This won't be exact and won't take into account multiple events in an entry so... whatever.  This is basically
         # just a crude dial if you run into memory problems
-        self.MAX_BUFFER_SIZE = 500000  # One MILLION - A million events in memory is ~9MB
+        self.MAX_BUFFER_SIZE = buffer_size  # Number of hits to read in before sorting.
 
         self.MAX_HITS_PER_EVENT = 999  # Maximum number of hits allowed in an EVENT, after that we move on to a new event, this is mostly just a protection against EVENT_LENGTH or
                                   # EVENT_EXTRA_GAP being too long causing a MASSIVE EVENT(it's funny because I only work with gammas)
@@ -38,7 +38,7 @@ class midas_events:
         # @ 125Mhz every 'tick' is 8ns
         self.EVENT_LENGTH = event_length  # How long an temporal event can be,   we're just using ticks at the moment, maybe someone else wants to do some conversions!?!
         self.EVENT_EXTRA_GAP = 5  # number of ticks to check in addition to EVENT_LENGTH in case one is just hanging out
-        self.PROCCESS_NUM_LIMIT = 2  # Max number of processess to spawn for sorting and potentially writing as well
+        self.PROCCESS_NUM_LIMIT = cores  # Max number of processess to spawn for sorting and potentially writing as well
 
         # NOTE!! If event timestamps are out of order in the MIDAS file then there is a chance we will miss events at the MAX_BUFFER_SIZE boundary.
         # So it is a good pratctice to set MAX_BUFFER_SIZE large, > 10,000,000
