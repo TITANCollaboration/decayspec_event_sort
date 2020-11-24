@@ -5,14 +5,12 @@
 MAX_GRIF16_CHANNELS = 16  # This thing has 16 channels... so...
 GRIF16_CHAN_PREFIX = 0
 
+
 def read_header(bank0data, show_header=True):
     chan = -1
-    #print(bank0data)
     if ((bank0data & 0xF0000000) >> 28) == 8:
-        #print("We have a Header!")
         chan = (bank0data & 0xFFFF0) >> 4  # I think this is right....
-
-    return chan  # nword is the number of words in the bank
+    return chan
 
 
 def test_for_footer(word_data):
@@ -30,21 +28,18 @@ def read_all_bank_events(bank_data):
     integration_length = 0
     timestamp = 0
     pileup = 0
-    #print(bank_data)
     chan = read_header(bank_data[0])
     num_words = len(bank_data)
     for data_pos in range(1, num_words):  # We have two words per event, one for ADC another for TDC
-        #print("Data pos : %i - " % (data_pos + 1),  end='')
         data_sig = ((bank_data[data_pos] & 0xF0000000) >> 28)
-        #print("Data Sig", hex(data_sig), " - ", bank_data[data_pos])
         # So the way this is apparently done is we have to throw out a few words as they are just header info
         # This seems to be (if you're following along with the GRIF-16 fragment format doc) words I-V and
         # in our setup we apparently do not get a II (type 0xd) packet.  Pulse height doesn't get it's own
         # packet type so you just have to pick it out and it can come in a number of flavors data_sig 0-7
         # then it's the
-        if data_sig == 10: # Hex (0xa) of course, get's the low bits of the timestamp
+        if data_sig == 10:  # Hex (0xa) of course, get's the low bits of the timestamp
             timestamp = bank_data[data_pos] & 0x0fffffff
-        if data_sig == 11: # Hex (0xb) high bits of the timestamp
+        if data_sig == 11:  # Hex (0xb) high bits of the timestamp
             timestamp |= (bank_data[data_pos] & 0x0003fff) << 28
         if (0 <= data_sig <= 7):
             if data_pos < 4:
@@ -53,7 +48,7 @@ def read_all_bank_events(bank_data):
                 other_packet_count = other_packet_count + 1
                 if other_packet_count == 1:
                     # The first "other packet" should be our pulse height ((word VIII))
-                    #pulse_height = (bank_data[data_pos] & 0x03FFFFFF)
+                    # pulse_height = (bank_data[data_pos] & 0x03FFFFFF)
                     pulse_height = (bank_data[data_pos] & 0x01ffffff)
                     # This is all a little weird, will need to verify with actual data.
                     integration_length |= ((bank_data[data_pos] & 0x7c000000) >> 17)

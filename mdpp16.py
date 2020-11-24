@@ -8,6 +8,7 @@
 MAX_MDPP16_CHANNELS = 16  # This thing has 16 channels... so...
 MDPP16_CHAN_PREFIX = 100
 
+
 def read_header(bank0data, show_header=True):
 
     hsig = (bank0data >> 30) & 0x3
@@ -20,7 +21,7 @@ def read_header(bank0data, show_header=True):
     if show_header is True:
         print("   ----HEADER---- ")
         print("     hsig : %i  -  subhead : %i  - mod_id %i" % (hsig, subhead, mod_id))
-        print("     tdc_res : %i  -  adc_res : %i  -  nword : %i" % (tdc_res, adc_res, nword))
+        print("     tdc_res : %i  -  adc_res : %i  -  numword : %i" % (tdc_res, adc_res, numwords))
     return numwords  # nword is the number of words in the bank
 
 
@@ -31,6 +32,7 @@ def test_for_footer(word_data):
         return event_counter_slash_timestamp
     else:
         return 0
+
 
 def read_single_event(bank_data, show_event=True):
     #  I think I'm going to read these things in pairs as that is what they are.. besides the footer.  I will check
@@ -61,6 +63,7 @@ def read_single_event(bank_data, show_event=True):
         print("   ----Event----")
         print("     Sig : %i,  Channel : %i, - trigChan: %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, chan, trigchan, adc_value, tdc_value))
     return myparticle_event
+
 
 def read_all_bank_events(bank_data):
     particle_events = []

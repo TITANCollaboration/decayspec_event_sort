@@ -33,7 +33,7 @@ class midas_events:
         self.MAX_BUFFER_SIZE = buffer_size  # Number of hits to read in before sorting.
 
         self.MAX_HITS_PER_EVENT = 999  # Maximum number of hits allowed in an EVENT, after that we move on to a new event, this is mostly just a protection against EVENT_LENGTH or
-                                  # EVENT_EXTRA_GAP being too long causing a MASSIVE EVENT(it's funny because I only work with gammas)
+                                       # EVENT_EXTRA_GAP being too long causing a MASSIVE EVENT(it's funny because I only work with gammas)
 
         # @ 125Mhz every 'tick' is 8ns
         self.EVENT_LENGTH = event_length  # How long an temporal event can be,   we're just using ticks at the moment, maybe someone else wants to do some conversions!?!
@@ -89,7 +89,7 @@ class midas_events:
 
                     if len(active_children()) < self.PROCCESS_NUM_LIMIT:  # Check if we are maxing out process # limit
                         self.checkpoint_EOB_timestamp = 0
-                        end_of_tevent = False
+                        self.end_of_tevent = False
                         p = Process(target=events.sort_events, args=(event_queue, particle_hits), daemon=False)
                         processes.append(p)
                         p.start()
