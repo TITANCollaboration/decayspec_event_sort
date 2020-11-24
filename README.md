@@ -9,4 +9,4 @@ pypy3 mds_sort.py --midas_file /decayspec_midas/run00297.mid.lz4 --output_file r
 For SORTED output:
 
 
-pypy3 mds_sort.py  --midas_file /decayspec_midas/run00297.mid.lz4 --output_file /vagrant/run00297_sorted.csv --output_format csv --sort_type event --event_length=1900000
+pypy3 mds_sort.py  --midas_file /decayspec_midas/run00297.mid.lz4 --output_file run00297_sorted.csv --output_format csv --sort_type event --event_length=1900000
