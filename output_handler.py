@@ -59,7 +59,11 @@ class output_handler:
     def write_csv_file(self, particle_events):
         print("\nWriting to CSV file :", self.filename)
         column_names = particle_events[0].keys()
-        with open(self.filename, 'a', encoding='utf-8') as csvfile:
+        mode_flag = 'a'
+        if self.first_write is True:
+            mode_flag = 'w'
+
+        with open(self.filename, mode_flag, encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=column_names, delimiter='|')
             if self.first_write is True:
                 writer.writeheader()

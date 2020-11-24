@@ -32,10 +32,6 @@ class midas_events:
         # just a crude dial if you run into memory problems
         self.MAX_BUFFER_SIZE = 500000  # One MILLION - A million events in memory is ~9MB
 
-        if self.MAX_BUFFER_SIZE == -1:  # Probably going to always use buffering...
-            self.BUFFERING = False
-        else:
-            self.BUFFERING = True
         self.MAX_HITS_PER_EVENT = 999  # Maximum number of hits allowed in an EVENT, after that we move on to a new event, this is mostly just a protection against EVENT_LENGTH or
                                   # EVENT_EXTRA_GAP being too long causing a MASSIVE EVENT(it's funny because I only work with gammas)
 
@@ -77,7 +73,7 @@ class midas_events:
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT)
 
         midas_file = midas.file_reader.MidasFile(self.midas_file)
-        for hit in tqdm(midas_file, unit='Hits/s'):
+        for hit in tqdm(midas_file, unit=' Hits/s'):
 
             for bank_name, bank in hit.banks.items():
                 particle_hit = []
