@@ -90,6 +90,8 @@ class output_handler:
     # *************************************************************************************
     def write_events(self, particle_events):
         if self.file_type.upper() == "ROOT":
+            if self.first_write:
+                self.file_handle = self.open_root_file()
             self.write_root_file(particle_events)
         if self.file_type.upper() == "HISTOGRAM":
             self.show_histogram(particle_events)
