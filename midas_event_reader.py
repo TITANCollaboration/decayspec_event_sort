@@ -93,12 +93,12 @@ class midas_events:
                         p = Process(target=events.sort_events, args=(event_queue, particle_hits), daemon=False)
                         processes.append(p)
                         p.start()
+
                         current_process_count = current_process_count + 1
                         particle_hits = []
-
                         self.entries_read_in_buffer = -1
-
                         print("\nActive childeren : ", len(active_children()))
+
                     if len(active_children()) == self.PROCCESS_NUM_LIMIT:
                         while event_queue.qsize() == 0:
                             sleep(.1)
