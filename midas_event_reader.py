@@ -73,7 +73,7 @@ class midas_events:
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT)
 
         midas_file = midas.file_reader.MidasFile(self.midas_file)
-        for hit in tqdm(midas_file, unit=' Hits/s'):
+        for hit in tqdm(midas_file, unit=' Hits'):
 
             for bank_name, bank in hit.banks.items():
                 particle_hit = []
