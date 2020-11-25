@@ -12,7 +12,12 @@ from output_handler import output_handler
 
 class midas_events:
 
-    def __init__(self, event_length, sort_type, midas_file, output_file, output_format, cores, buffer_size):
+    def __init__(self, event_length, sort_type, midas_file, output_file, output_format, cores, buffer_size, cal_file):
+        if cal_file:
+            self.calibrate = True
+        else:
+            self.calibrate = False
+
         self.sort_type = sort_type
         self.midas_file = midas_file
         self.output_file = output_file
@@ -39,7 +44,7 @@ class midas_events:
         self.EVENT_LENGTH = event_length  # How long an temporal event can be,   we're just using ticks at the moment, maybe someone else wants to do some conversions!?!
         self.EVENT_EXTRA_GAP = 5  # number of ticks to check in addition to EVENT_LENGTH in case one is just hanging out
         self.PROCCESS_NUM_LIMIT = cores  # Max number of processess to spawn for sorting and potentially writing as well
-
+        self.cal_file = cal_file
         # NOTE!! If event timestamps are out of order in the MIDAS file then there is a chance we will miss events at the MAX_BUFFER_SIZE boundary.
         # So it is a good pratctice to set MAX_BUFFER_SIZE large, > 10,000,000
         # But be careful that you do not go over the timestamp theshold where the timestamp is recycled ~ 2x a day at 100Mhz
@@ -70,7 +75,7 @@ class midas_events:
 
         myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
 
-        events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT)
+        events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file)
 
         midas_file = midas.file_reader.MidasFile(self.midas_file)
         for hit in tqdm(midas_file, unit=' Hits'):

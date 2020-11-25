@@ -27,10 +27,13 @@ def main():
                         help="Format : ROOT, HISTOGRAM (DEFAULT  : CSV) (more to maybe come, or add your own!)")
     parser.add_argument('--sort_type', dest='sort_type', default='event', required=False,
                         help="Type of sort, defaults to event based, can specify 'raw' as well for no sorting")
+    parser.add_argument('--cal_file', dest='cal_file', required=False,
+                        help="Calibration file")
+
 
     args, unknown = parser.parse_known_args()
 
-    my_midas = midas_events(args.event_length, args.sort_type, args.midas_file, args.output_file, args.output_format, args.cores, args.buffer_size)
+    my_midas = midas_events(args.event_length, args.sort_type, args.midas_file, args.output_file, args.output_format, args.cores, args.buffer_size, args.cal_file)
     my_midas.read_midas_events()
 
 

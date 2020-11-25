@@ -1,15 +1,18 @@
 import operator
-
+from energy_calibration import energy_calibration
 
 class event_handler:
-    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event):
+    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file):
         self.sort_type = sort_type
         # self.event_queue =
         self.event_length = event_length
         self.event_extra_gap = event_extra_gap
         self.max_hits_per_event = max_hits_per_event
-
+        self.calibrate = calibrate
+        if self.calibrate:
+            self.energy_calibration = energy_calibration(cal_file)
         # events = event_handler(self.sort_type, event_queue, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT)
+
     def sort_events(self, event_queue, particle_hit_list):
         if self.sort_type == 'event':
             self.sort_event_based(event_queue, particle_hit_list)
@@ -22,6 +25,9 @@ class event_handler:
 
     def raw_sorter(self, event_queue, particle_event_list):
         # This is mostly a dummy function
+        if self.calibrate:
+            particle_event_list = self.energy_calibration.calibrate_list(particle_event_list)
+
         print("Performing Raw Sorting...")
         event_queue.put(particle_event_list)
         return
@@ -31,6 +37,9 @@ class event_handler:
         particle_event_list = []
         particle_hit_list = sorted(particle_hit_list, key=operator.itemgetter('timestamp'))
         for particle_hit in particle_hit_list:
+            if self.calibrate:
+                particle_hit['pulse_height'] = self.energy_calibration.calibrate_hit(particle_hit)
+
             if not particle_event_list:
                 event_hit_count = 1
                 particle_event_list.append({'pulse_height': [particle_hit['pulse_height']], 'chan': [particle_hit['chan']], 'timestamp': particle_hit['timestamp'], "hit_count": 1})
