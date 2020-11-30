@@ -1,0 +1,18 @@
+[GRIF16]
+prefix = 00
+
+[[CH12]]
+chan = 12
+cal_coef = 1 2 3
+
+[[CH13]]
+chan = 13
+cal_coef = 2 2 3
+
+[[CH14]]
+chan = 14
+cal_coef = 1 0.5
+
+[[CH15]]
+chan = 15
+cal_coef = 1 0.5
