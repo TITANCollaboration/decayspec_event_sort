@@ -12,14 +12,14 @@ from output_handler import output_handler
 
 class midas_events:
 
-    def __init__(self, event_length, sort_type, midas_file, output_file, output_format, cores, buffer_size, cal_file):
+    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file):
         if cal_file:
             self.calibrate = True
         else:
             self.calibrate = False
 
         self.sort_type = sort_type
-        self.midas_file = midas_file
+        self.midas_files = midas_files
         self.output_file = output_file
         self.output_format = output_format
         self.checkpoint_EOB_timestamp = 0
@@ -66,7 +66,15 @@ class midas_events:
         return []
         # particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 
-    def read_midas_events(self):
+    def read_midas_files(self):
+        for my_file in self.midas_files:
+            midas_file = midas.file_reader.MidasFile(my_file)
+            print(my_file)
+            self.read_midas_events(midas_file)
+
+        return
+
+    def read_midas_events(self, midas_file):
         particle_hits = []
         particle_event_list = []
         processes = []
@@ -77,7 +85,7 @@ class midas_events:
 
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file)
 
-        midas_file = midas.file_reader.MidasFile(self.midas_file)
+        #midas_file = midas.file_reader.MidasFile(self.midas_file)
         for hit in tqdm(midas_file, unit=' Hits'):
 
             for bank_name, bank in hit.banks.items():

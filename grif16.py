@@ -48,8 +48,11 @@ def read_all_bank_events(bank_data):
                 other_packet_count = other_packet_count + 1
                 if other_packet_count == 1:
                     # The first "other packet" should be our pulse height ((word VIII))
-                    # pulse_height = (bank_data[data_pos] & 0x03FFFFFF)
-                    pulse_height = (bank_data[data_pos] & 0x01ffffff)
+                    #pulse_height = (bank_data[data_pos] & 0x01ffffff)
+                    # In the GRIFFIN code I found they decode 25 bits for this (above) but in the documentation it
+                    # mentions 26bits (below).  Tobias asked that I change it to 26bits which didn't have much
+                    # impact.. I don't know... maybe leave it at 26bits for now unless we find a problem
+                    pulse_height = (bank_data[data_pos] & 0x03ffffff)
                     # This is all a little weird, will need to verify with actual data.
                     integration_length |= ((bank_data[data_pos] & 0x7c000000) >> 17)
                 if other_packet_count == 2:

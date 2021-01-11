@@ -13,8 +13,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='Geant4 Macro Scheduler')
 
-    parser.add_argument('--midas_file', dest='midas_file', required=True,
-                        help="Path to the Midas file to read.")
+    parser.add_argument('--midas_files', dest='midas_files', type=str, nargs='+', required=True,
+                        help="Path to the Midas file(s) to read, supports wildcards.")
     parser.add_argument('--output_file', dest='output_file', required=True,
                         help="Path to output file")
     parser.add_argument('--event_length', dest='event_length', type=int, default=1, required=False,
@@ -30,12 +30,10 @@ def main():
     parser.add_argument('--cal_file', dest='cal_file', required=False,
                         help="Calibration file")
 
-
     args, unknown = parser.parse_known_args()
-
-    my_midas = midas_events(args.event_length, args.sort_type, args.midas_file, args.output_file, args.output_format, args.cores, args.buffer_size, args.cal_file)
-    my_midas.read_midas_events()
-
+    my_midas = midas_events(args.event_length, args.sort_type, args.midas_files, args.output_file, args.output_format, args.cores, args.buffer_size, args.cal_file)
+    #my_midas.read_midas_events()
+    my_midas.read_midas_files()
 
 if __name__ == "__main__":
     main()
