@@ -67,6 +67,8 @@ class midas_events:
         # particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 
     def read_midas_files(self):
+        # read_midas_files : Loops around an array of files that were passed in order to process multiple subruns
+        # via wildcards passed on the CLI
         for my_file in self.midas_files:
             midas_file = midas.file_reader.MidasFile(my_file)
             print(my_file)
@@ -113,7 +115,7 @@ class midas_events:
                         print("\nActive childeren : ", len(active_children()))
 
                     if len(active_children()) == self.PROCCESS_NUM_LIMIT:
-                        while event_queue.qsize() == 0:
+                        while event_queue.qsize() == 0:  # Drain the master queue
                             sleep(.1)
                         particle_event_list = self.check_and_write_queue(event_queue, particle_event_list, myoutput)
 
