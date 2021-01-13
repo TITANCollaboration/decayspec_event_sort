@@ -27,6 +27,8 @@ def main():
                         help="Format : ROOT, HISTOGRAM (DEFAULT  : CSV) (more to maybe come, or add your own!)")
     parser.add_argument('--sort_type', dest='sort_type', default='event', required=False,
                         help="Type of sort, defaults to event based, can specify 'raw' as well for no sorting")
+    parser.add_argument('--no_round', dest='no_round', default=1, required=False,
+                        help="Don't round the floats that come in from the DAQ's ** Not implimented yet..")
     parser.add_argument('--cal_file', dest='cal_file', required=False,
                         help="Calibration file")
 

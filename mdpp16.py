@@ -52,7 +52,9 @@ def read_single_event(bank_data, show_event=True):
         trigchan = (bank_data[current_word] >> 16) & 0x3F
         chan = (bank_data[current_word] >> 16) & 0x1F
         if chan < MAX_MDPP16_CHANNELS:
-            adc_value = (bank_data[current_word] >> 0) & 0xFFFF
+            # Note that I'm rounding the pulse_height.  These come in as decimals but I don't see a point in keeping it that way
+            # I will probably add a command line switch for this or maybe not.. best laid plans and what not.. -jonr
+            adc_value = round((bank_data[current_word] >> 0) & 0xFFFF)
         if chan > MAX_MDPP16_CHANNELS and chan < (MAX_MDPP16_CHANNELS * 2) + 2:
             tdc_value = (bank_data[current_word] >> 0) & 0xFFFF
 
