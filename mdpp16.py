@@ -42,7 +42,7 @@ def read_single_event(bank_data, show_event=True):
     tdc_value = -1
     chan = -1
     trigchan = -1
-    flags = 0
+    flags = 1  # Setting to 1 to match the pileup flag for the grif16, it means nothing here
     # event_counter_slash_timestamp = -1
     for current_word in range(num_words_per_event):
         data_sig = (bank_data[current_word] >> 30) & 0x3

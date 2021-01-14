@@ -3,7 +3,7 @@
 # * Started : March 12th 2020 - Yup, writing this at the beginning of the great plague of 2020.
 # * Purpose : To read in MIDAS files that contain MDPP16 and GRIF16 (either/or/both) and
 # *           output in ROOT format.  Possibly also parquet at some point.
-#  * Requirements : Python 3, UpRoot, MIDAS, tqdm
+#  * Requirements : Python 3, UpRoot (optional), MIDAS, tqdm, HDFS (optional)
 # *************************************************************************************
 import argparse
 from midas_event_reader import midas_events
@@ -11,7 +11,7 @@ from midas_event_reader import midas_events
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Geant4 Macro Scheduler')
+    parser = argparse.ArgumentParser(description='Midas Decay Spec Sorter')
 
     parser.add_argument('--midas_files', dest='midas_files', type=str, nargs='+', required=True,
                         help="Path to the Midas file(s) to read, supports wildcards.")

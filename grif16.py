@@ -62,9 +62,9 @@ def read_all_bank_events(bank_data):
         integrated_pulse_height = pulse_height / integration_length
         # Note that I'm rounding the pulse_height.  These come in as decimals but I don't see a point in keeping it that way
         # I will probably add a command line switch for this or maybe not.. best laid plans and what not.. -jonr
-        myparticle_event = {"timestamp": timestamp, "chan": (chan + GRIF16_CHAN_PREFIX), "pulse_height": round(integrated_pulse_height), "flags": pileup}
+    myparticle_event = {"timestamp": timestamp, "chan": (chan + GRIF16_CHAN_PREFIX), "pulse_height": round(integrated_pulse_height), "flags": pileup}
     #    print("TimeStamp %i   -  Pulse Height %i" % (timestamp, integrated_pulse_height))
-        particle_events.append(myparticle_event)
+    particle_events.append(myparticle_event)
 
     # print("Pileup : %i   -   Time stamp : %i" % (pileup, timestamp))
     return particle_events
