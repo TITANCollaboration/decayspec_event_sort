@@ -6,7 +6,7 @@
 #  * Requirements : Python 3, UpRoot (optional), MIDAS, tqdm, HDFS (optional)
 # *************************************************************************************
 import argparse
-from midas_event_reader import midas_events
+from lib.midas_event_reader import midas_events
 
 
 def main():
