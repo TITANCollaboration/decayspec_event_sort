@@ -1,5 +1,5 @@
 import operator
-from energy_calibration import energy_calibration
+from lib.energy_calibration import energy_calibration
 
 class event_handler:
     def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file):

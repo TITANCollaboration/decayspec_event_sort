@@ -1,13 +1,13 @@
 import sys
 sys.path.append('/usr/local/packages/midas/python')
 import midas.file_reader
-import mdpp16
-import grif16
+import lib.mdpp16 as mdpp16
+import lib.grif16 as grif16
 from tqdm import tqdm
-from event_handler import event_handler
+from lib.event_handler import event_handler
 from multiprocessing import Process, Queue, SimpleQueue, active_children
 from time import sleep
-from output_handler import output_handler
+from lib.output_handler import output_handler
 
 
 class midas_events:
