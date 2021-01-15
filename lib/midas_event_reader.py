@@ -12,12 +12,14 @@ from lib.output_handler import output_handler
 
 class midas_events:
 
-    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file):
+    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file):
         if cal_file:
             self.calibrate = True
         else:
             self.calibrate = False
 
+        self.write_events_to_file = write_events_to_file
+        self.particle_hit_buffer = []
         self.sort_type = sort_type
         self.midas_files = midas_files
         self.output_file = output_file
@@ -62,7 +64,10 @@ class midas_events:
     def check_and_write_queue(self, event_queue, particle_event_list, myoutput):
         while event_queue.qsize() > 0:
             particle_event_list.extend(event_queue.get())
-        myoutput.write_events(particle_event_list)
+        if self.write_events_to_file is True:
+            myoutput.write_events(particle_event_list)
+        else:
+            self.particle_hit_buffer.extend(particle_event_list)
         return []
         # particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 

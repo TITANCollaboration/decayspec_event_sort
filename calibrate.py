@@ -5,9 +5,19 @@
 #  * Requirements : Python 3, matplotlib, probably something other stuff numpy,scipy...
 # *************************************************************************************
 import argparse
-from lib.read_in_data import input_handler
-from histogram_generator import hist_gen
 
+# Should be able to suck in multiple .mid files and figure out what channels were used.
+
+# From NuDat for 60Co
+#     1173.228 3  	     99.85 % 3 	  1.1715 4
+#	  1332.492 4  	     99.9826 % 6 	  1.332260 9
+#	  2158.57 3  	      0.00120 % 20 	  2.6E-5 4   - Don't really care about this one.
+#https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp?nuc=60CO&unc=nds
+# Probably convert to numpy histogram : https://numpy.org/doc/stable/reference/generated/numpy.histogram.html
+# Find peaks using from scipy.signal import find_peaks
+# Find peak boundaries maybe using some of my old particle physics 1 Code
+# fit peak using lmfit https://millenia.cars.aps.anl.gov/software/python/lmfit/examples/example_use_pandas.html#sphx-glr-examples-example-use-pandas-py
+# find highest peak and next big peak to the right of it
 
 def parse_and_run(args):
     myinput = input_handler(args.input_filename)
@@ -24,8 +34,16 @@ def main():
 
     parser = argparse.ArgumentParser(description='Decay Spec Array Calibrator')
 
-    parser.add_argument('--data_file', dest='input_filename', required=True,
-                        help="path to data file from mds_sort")
+    parser.add_argument('--60co_midas_files', dest='60co_midas_files', type=str, nargs='+', required=False,
+                        help="Path to the Midas file(s) to read, supports wildcards. Must be 60Co files")
+    parser.add_argument('--152eu_midas_files', dest='152eu_midas_files', type=str, nargs='+', required=False,
+                        help="Path to the Midas file(s) to read, supports wildcards. Must be 152eu files")
+    parser.add_argument('--linear_input_file', dest='linear_input_file', required=False,
+                        help="File containing linear fits for detectors")
+    parser.add_argument('--linear_output_file', dest='linear_output_file', required=False,
+                        help="File to write linear calibrations to")
+    parser.add_argument('--quad_output_file', dest='quad_output_file', required=False,
+                        help="File to write Quadratic calibrations to")
     parser.add_argument('--chan', dest='channel_num', nargs='+', type=int, required=False,  # wont' require forever..
                         help="channel or list of channels to graph --chan 0 1 3")
     parser.add_argument('--xmax', dest='max_pulse_height', type=int, default=65536, required=False,  # wont' require forever..
@@ -34,8 +52,8 @@ def main():
                         help="Min Pulse Height")
     parser.add_argument('--nbins', dest='bin_number', type=int, default=1000, required=False,  # wont' require forever..
                         help="Number of bins, will default to the smaller of 1000 or max_pulse_height - min_pulse_height")
-    parser.add_argument('--type', dest='data_type', required=False, default='raw',  # wont' require forever..
-                        help="Data input type, RAW 'raw' or EVENT 'event', raw is the default")
+    parser.add_argument('--cal_type', dest='cal_type', required=False, default='linear',  # wont' require forever..
+                        help="Calibration Type: linear or quadratic, for the quadratic you must already have a linear fit file generated via 60Co")
 
     args, unknown = parser.parse_known_args()
 

@@ -33,7 +33,7 @@ def main():
                         help="Calibration file")
 
     args, unknown = parser.parse_known_args()
-    my_midas = midas_events(args.event_length, args.sort_type, args.midas_files, args.output_file, args.output_format, args.cores, args.buffer_size, args.cal_file)
+    my_midas = midas_events(args.event_length, args.sort_type, args.midas_files, args.output_file, args.output_format, args.cores, args.buffer_size, args.cal_file, True)
     #my_midas.read_midas_events()
     my_midas.read_midas_files()
 
