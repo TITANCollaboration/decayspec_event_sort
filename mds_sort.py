@@ -8,6 +8,7 @@
 import argparse
 from lib.midas_event_reader import midas_events
 
+# !!! Add in histogram data output to allow for smaller size data sets
 
 def main():
 
@@ -24,7 +25,7 @@ def main():
     parser.add_argument('--buffer_size', dest='buffer_size', type=int, default=500000, required=False,
                         help="Buffer size, determines how many hits to read in before sorting and writing.  Larger buffer == more ram used")
     parser.add_argument('--output_format', dest='output_format', default='csv', required=False,
-                        help="Format : ROOT, HISTOGRAM (DEFAULT  : CSV) (more to maybe come, or add your own!)")
+                        help="Format : ROOT, HISTOGRAM, CSV, HDF5 (DEFAULT  : CSV) (Only CSV fully works right now, ROOT is slow)")
     parser.add_argument('--sort_type', dest='sort_type', default='event', required=False,
                         help="Type of sort, defaults to event based, can specify 'raw' as well for no sorting")
     parser.add_argument('--no_round', dest='no_round', default=1, required=False,

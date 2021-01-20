@@ -88,10 +88,11 @@ class midas_events:
         current_process_count = 0
         event_queue = Queue()
 
-        myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
-
+        if self.write_events_to_file is True:
+            myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
+        else:
+            myoutput = None
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file)
-
         #midas_file = midas.file_reader.MidasFile(self.midas_file)
         for hit in tqdm(midas_file, unit=' Hits'):
 

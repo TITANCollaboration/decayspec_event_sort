@@ -14,6 +14,7 @@ import csv
 class output_handler:
 
     def __init__(self, filename, file_type, raw_output=False, first_write=True):
+        print("My File Type : ", file_type)
         self.filename = filename
         self.file_type = file_type.upper()
         self.first_write = first_write
@@ -80,10 +81,11 @@ class output_handler:
     def show_histogram(self, particle_events):
         import matplotlib as plt
         import seaborn as sns
-
-        pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
-        myhist = pd_particle_events[pd_particle_events['chan'] == 0].hist(column='pulse_height', bins=1000)
-        plt.pyplot.show()
+        # histos.py takes care of this initial funcationality but I will switch it over to be able to output
+        # histogram data
+        #pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
+        #myhist = pd_particle_events[pd_particle_events['chan'] == 0].hist(column='pulse_height', bins=1000)
+        #plt.pyplot.show()
         #myhist.plot()
         #plt.show()
         #return 0

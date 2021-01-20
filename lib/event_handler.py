@@ -11,6 +11,7 @@ class event_handler:
         self.calibrate = calibrate
         if self.calibrate:
             self.energy_calibration = energy_calibration(cal_file)
+            self.energy_calibration.read_in_calibration_file()
         # events = event_handler(self.sort_type, event_queue, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT)
 
     def sort_events(self, event_queue, particle_hit_list):
@@ -42,7 +43,10 @@ class event_handler:
 
             if not particle_event_list:
                 event_hit_count = 1
-                particle_event_list.append({'pulse_height': [particle_hit['pulse_height']], 'chan': [particle_hit['chan']], 'timestamp': particle_hit['timestamp'], "hit_count": 1})
+                particle_event_list.append({'pulse_height': [particle_hit['pulse_height']],
+                                            'chan': [particle_hit['chan']],
+                                            'timestamp': particle_hit['timestamp'],
+                                            'hit_count': 1})
             # check if the timestamp is in the range of a temporal event and that we aren't seeing the event from the same detector, this might get weird and maybe we should care
             # as it could have an impact on events after it..
             elif ((particle_hit['timestamp'] - particle_event_list[-1]['timestamp']) < (self.event_length + self.event_extra_gap)): # and (particle_hit['chan'] not in particle_event_list[-1]['chan']):
@@ -52,6 +56,9 @@ class event_handler:
                 particle_event_list[-1]['hit_count'] = event_hit_count
             else:
                 event_hit_count = 1
-                particle_event_list.append({'pulse_height': [particle_hit['pulse_height']], 'chan': [particle_hit['chan']], 'timestamp': particle_hit['timestamp'], 'hit_count': event_hit_count})
+                particle_event_list.append({'pulse_height': [particle_hit['pulse_height']],
+                                            'chan': [particle_hit['chan']],
+                                            'timestamp': particle_hit['timestamp'],
+                                            'hit_count': event_hit_count})
         event_queue.put(particle_event_list)
         return

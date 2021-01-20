@@ -22,7 +22,12 @@ class hist_gen:
         mydata_df[mydata_df['chan'].isin(channels) &
                   (mydata_df['flags'] == self.flags) &
                   (mydata_df['pulse_height'] > self.min_pulse_height) &
-                  (mydata_df['pulse_height'] < self.max_pulse_height)].hist(column='pulse_height', by='chan', figsize=(20, 20), bins=self.bins, ax=self.axes)
+                  (mydata_df['pulse_height'] < self.max_pulse_height)].hist(column='pulse_height',
+                                                                            by='chan',
+                                                                            figsize=(20, 20),
+                                                                            bins=self.bins,
+                                                                            ax=self.axes,
+                                                                            histtype='step')
         if len(channels) == 1:
             plt.title(self.title + ' chan: ' + str(channels[0]))
         plt.xlabel(self.xlabel)
