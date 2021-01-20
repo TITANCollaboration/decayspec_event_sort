@@ -7,10 +7,7 @@
 import argparse
 from lib.midas_event_reader import midas_events
 from lib.energy_calibration import energy_calibration
-import scipy.signal
-import numpy as np
-from matplotlib import pyplot as plt
-import pandas as pd
+#from matplotlib import pyplot as plt
 # Should be able to suck in multiple .mid files and figure out what channels were used.
 
 # From NuDat for 60Co
@@ -25,37 +22,27 @@ import pandas as pd
 # find highest peak and next big peak to the right of it
 
 def parse_and_run(args):
-    my_list = []
-    event_length = 1
+    LOAD_FROM_DF_FILE = True
+    event_length = 1  # This isn't a needed concept here so we just set it to one tick of the clock which disables event based stuff
+    energy_cal = energy_calibration()
+
     if args.bin_number > (args.max_pulse_height-args.min_pulse_height):
         bin_number = args.max_pulse_height-args.min_pulse_height
     else:
         bin_number = args.bin_number
 
-#    if args.cal_type == 'linear':
-#        my_midas = midas_events(event_length, 'raw', args.co60_midas_files, None, None, args.cores, args.buffer_size, None, False)
-#    else:
-#        my_midas = midas_events(event_length, 'raw', args.eu152_midas_files, None, None, args.cores, args.buffer_size, None, False)
+    if args.cal_type == 'linear':
+        my_midas = midas_events(event_length, 'raw', args.co60_midas_files, None, None, args.cores, args.buffer_size, None, False)
+    else:
+        my_midas = midas_events(event_length, 'raw', args.eu152_midas_files, None, None, args.cores, args.buffer_size, None, False)
 
-#    my_midas.read_midas_files()
-    energy_cal = energy_calibration()
-#    energy_cal.raw_to_histograms(my_midas.particle_hit_buffer, args.min_pulse_height, args.max_pulse_height, args.bin_number)
-    print("Bin num", bin_number)
-    energy_cal.raw_to_histograms(None, args.min_pulse_height, args.max_pulse_height, bin_number)
-    for chan_hist in energy_cal.hist_list:
-        print("My channel", chan_hist['chan'])
-        my_chan = chan_hist['chan']
-        my_chan_hist = chan_hist['hist']
-        # We need around 2000 counts of the first peak.. 
-        indexes, _ = scipy.signal.find_peaks(chan_hist['hist'], height=1000, prominence=2000, width=1, distance=5)  # Find all the major peaks
-        first_peak = np.where(chan_hist['hist'] == np.amax(chan_hist['hist']))[0][0]
-        print("First peak", first_peak)
-    print('Peaks are: %s' % (indexes))
-
-    second_peak = np.where(indexes == first_peak)[0][0] + 1
-    print("Second peak ", indexes[second_peak])
-
-
+    if LOAD_FROM_DF_FILE is True:
+        energy_cal.raw_to_histograms(None, args.min_pulse_height, args.max_pulse_height, bin_number, "my_cal2.csv")
+    else:
+        my_midas.read_midas_files()
+        energy_cal.raw_to_histograms(my_midas.particle_hit_buffer, args.min_pulse_height, args.max_pulse_height, args.bin_number)
+    energy_cal.find_co60_peaks()
+    energy_cal.find_co60_centroids()
     #plt.hist(my_chan_hist, bins=bin_number, histtype='step')
     #plt.show()
 
