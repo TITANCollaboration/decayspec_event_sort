@@ -43,12 +43,17 @@ def parse_and_run(args):
         energy_cal.raw_to_histograms(my_midas.particle_hit_buffer, args.min_pulse_height, args.max_pulse_height, args.bin_number)
     energy_cal.find_co60_peaks()
     energy_cal.find_co60_centroids()
+    if args.linear_output_file is None:
+        linear_output_file = 'testme.lin'
+    else:
+        linear_output_file = args.linear_output_file
+    energy_cal.find_linear_fit_from_co60(linear_output_file)
     #plt.hist(my_chan_hist, bins=bin_number, histtype='step')
     #plt.show()
 
     return
 
-
+#  !! CHECK ON hit list to PANDAS conversion, might have to do something to keep the memory more restrained before going to histograms
 def main():
 
     parser = argparse.ArgumentParser(description='Decay Spec Array Calibrator')

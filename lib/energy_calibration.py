@@ -14,6 +14,8 @@ class energy_calibration:
         self.cal_dict = {}
         self.MIN_CHAN_COUNT = 10000
         self.co60_hit_list = None
+        self.co60_energy_vals = [1173.228, 1332.492]
+
         #peak_dict = {'peak_pulse_height': 0, 'peak_center_index': 0, 'est_peak_width': 0, 'est_peak_amp': 0}
         self.co60_peaks = []
         #self.read_in_calibration_file()
@@ -112,8 +114,21 @@ class energy_calibration:
 
     def find_co60_centroids(self):
         self.find_peak_centroid(self.co60_hist_list, 'co60_peak_info')  # Grabbing more of the peak base by *2
-        pprint(self.co60_hist_list)
         return
+
+    def find_linear_fit_from_co60(self, linear_output_file, OVERWRITE=True):
+        for chan_hist_index in range(len(self.co60_hist_list)):
+            pulse_height = []
+            chan_hist = self.co60_hist_list[chan_hist_index]
+            for my_peak_index in range(len(chan_hist['co60_peak_info'])):
+                pulse_height.append(self.co60_hist_list[chan_hist_index]['co60_peak_info'][my_peak_index]['fit_peak_center'])
+
+            linear_fit = np.polyfit(pulse_height, self.co60_energy_vals, 1)  # Least squares polynomial fit.
+            self.co60_hist_list[chan_hist_index].update({'linear_fit': linear_fit})
+        pprint(self.co60_hist_list)
+
+        return
+
 
 # Performance stuff
 # 1:20 no calibration
