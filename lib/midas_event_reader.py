@@ -62,14 +62,14 @@ class midas_events:
         return particle_hit
 
     def check_and_write_queue(self, event_queue, particle_event_list, myoutput):
+        self.write_events_to_file = False
         while event_queue.qsize() > 0:
             particle_event_list.extend(event_queue.get())
         if self.write_events_to_file is True:
             myoutput.write_events(particle_event_list)
         else:
-            self.particle_hit_buffer.extend(particle_event_list)
+            self.histo_dict = particle_event_list
         return []
-        # particle_event_list = []  # Make sure to clear the list after we write out the data so we don't write it multiple times.
 
     def read_midas_files(self):
         # read_midas_files : Loops around an array of files that were passed in order to process multiple subruns
@@ -78,22 +78,23 @@ class midas_events:
             midas_file = midas.file_reader.MidasFile(my_file)
             print(my_file)
             self.read_midas_events(midas_file)
-
         return
 
     def read_midas_events(self, midas_file):
+        total_hits = 0
         particle_hits = []
         particle_event_list = []
         processes = []
         current_process_count = 0
+        total_pileups = 0
+        total_over_16k = 0
         event_queue = Queue()
-
+        bad_packet = 0
         if self.write_events_to_file is True:
             myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
         else:
             myoutput = None
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file)
-        #midas_file = midas.file_reader.MidasFile(self.midas_file)
         for hit in tqdm(midas_file, unit=' Hits'):
 
             for bank_name, bank in hit.banks.items():
@@ -103,10 +104,22 @@ class midas_events:
 
                 elif bank_name == "GRF4":  # Check if this is an event from the GRIF16
                     particle_hit = self.decode_raw_hit_event(grif16.read_all_bank_events, bank.data)
-
+                    total_hits = total_hits + 1
+                    if particle_hit:
+                        if particle_hit[0]['flags'] > 1:
+                            total_pileups = total_pileups + 1
+                        if particle_hit[0]['pulse_height'] > 65535:
+                            total_over_16k = total_over_16k + 1
+                    else:
+                        bad_packet = bad_packet + 1
                 if particle_hit:
                     particle_hits.extend(particle_hit)
-                if (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
+                if self.sort_type == 'histo' and (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
+                    self.end_of_tevent = False
+                    # Yes, this histogram stuff is special and I had issues integrating it into the multiprocessor stuff due to weird queue deadlocks due to size
+                    events.sort_events(event_queue, particle_hits)
+                    self.entries_read_in_buffer = -1
+                elif (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
 
                     if len(active_children()) < self.PROCCESS_NUM_LIMIT:  # Check if we are maxing out process # limit
                         self.checkpoint_EOB_timestamp = 0
@@ -123,6 +136,7 @@ class midas_events:
                     if len(active_children()) == self.PROCCESS_NUM_LIMIT:
                         while event_queue.qsize() == 0:  # Drain the master queue
                             sleep(.1)
+                        print(event_queue)
                         particle_event_list = self.check_and_write_queue(event_queue, particle_event_list, myoutput)
 
                         for proc in processes:
@@ -130,8 +144,11 @@ class midas_events:
                         current_process_count = 0
             self.entries_read_in_buffer = self.entries_read_in_buffer + 1
 
-        if len(particle_hits) > 0:  # Check if we should sort and that there are hits to sort..
+        if (len(particle_hits) > 0) or (self.sort_type == 'histos'):  # Check if we should sort and that there are hits to sort..
             print("Processing remaining events in queue...")
             events.sort_events(event_queue, particle_hits)
+            if self.sort_type == 'histo':
+                particle_event_list = events.histo_data_dict
             particle_event_list = self.check_and_write_queue(event_queue, particle_event_list, myoutput)
+        print("Total hits", total_hits, "Total Pileups:", total_pileups, "Over 16k:", total_over_16k, "Bad Packet:", bad_packet)
         return 0

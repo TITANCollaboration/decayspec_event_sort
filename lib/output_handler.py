@@ -13,12 +13,12 @@ import csv
 
 class output_handler:
 
-    def __init__(self, filename, file_type, raw_output=False, first_write=True):
+    def __init__(self, filename, file_type, sort_type, first_write=True):
         print("My File Type : ", file_type)
         self.filename = filename
         self.file_type = file_type.upper()
         self.first_write = first_write
-        self.raw_output = raw_output
+        self.sort_type = sort_type
         self.file_handle = None
 
     # *************************************************************************************
@@ -95,6 +95,9 @@ class output_handler:
     # Determine what file type is chosen, default to ROOT and select the appropriate function
     # *************************************************************************************
     def write_events(self, particle_events):
+        if self.sort_type == 'histo':
+            print("Skipping writing for now.. please add me later..")
+            return
         if self.file_type.upper() == "ROOT":
             if self.first_write:
                 self.file_handle = self.open_root_file()

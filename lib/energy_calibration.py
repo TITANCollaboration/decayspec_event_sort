@@ -70,32 +70,31 @@ class energy_calibration:
                 print("! Discarding Channel", my_chan, "due to total channel hits being below the min threshold of", self.MIN_CHAN_COUNT, "total counts.")
         return
 
-    def find_co60_peaks(self):
+    def find_co60_peaks(self, chan, index):
         # Find the Co 60 peaks, we need a reasonable amount of data to do this, > 10,000 hits but more is better
         # Look for tallest peak and see if that lines up with a found peak using scipy.signal.find_peaks, if it does that's our first Co60 line
         # Then just move to the next found peak index and that is our 2nd Co60 peak.  We could also take a look at widths as the 2 Co60 peaks should also
         # have the smallest widths
-        for chan_hist_index in range(len(self.co60_hist_list)):
-            chan_hist = self.co60_hist_list[chan_hist_index]
-            # We need around 2000 counts of the first peak..
-            peak_indexes, peak_properties = scipy.signal.find_peaks(chan_hist['hist'], height=1000, prominence=2000, width=1, distance=5)  # Find all the major peaks
-            first_co60_peak = np.where(chan_hist['hist'] == np.amax(chan_hist['hist']))[0][0]  # Find the 1173 peak, will(should) be the biggest or something is wrong..
-            # Trying to move the below under the channel so we get all channels..
-            first_co60_peak_index = np.where(peak_indexes == first_co60_peak)[0][0]
-            second_co60_peak_index = first_co60_peak_index + 1  # We look just to the right on the biggest peak to find the 1332 peak
-            co60_peaks = []
-            for my_peak_index in first_co60_peak_index, second_co60_peak_index:
-                co60_peaks.append({'est_peak_center': peak_indexes[my_peak_index],
-                                   'est_peak_width': peak_properties['widths'][my_peak_index],
-                                   'est_peak_amp': peak_properties['peak_heights'][my_peak_index],
-                                   'fit_peak_center': None,
-                                   'fit_peak_fwhm': None})
-            self.co60_hist_list[chan_hist_index].update({'co60_peak_info': co60_peaks})
+        chan_hist = self.co60_hist_list[index]
+        # We need around 2000 counts of the first peak..
+        peak_indexes, peak_properties = scipy.signal.find_peaks(chan_hist['hist'], height=1000, prominence=2000, width=1, distance=5)  # Find all the major peaks
+        first_co60_peak = np.where(chan_hist['hist'] == np.amax(chan_hist['hist']))[0][0]  # Find the 1173 peak, will(should) be the biggest or something is wrong..
+        # Trying to move the below under the channel so we get all channels..
+        first_co60_peak_index = np.where(peak_indexes == first_co60_peak)[0][0]
+        second_co60_peak_index = first_co60_peak_index + 1  # We look just to the right on the biggest peak to find the 1332 peak
+        co60_peaks = []
+        for my_peak_index in first_co60_peak_index, second_co60_peak_index:
+            co60_peaks.append({'est_peak_center': peak_indexes[my_peak_index],
+                               'est_peak_width': peak_properties['widths'][my_peak_index],
+                               'est_peak_amp': peak_properties['peak_heights'][my_peak_index],
+                               'fit_peak_center': None,
+                               'fit_peak_fwhm': None})
+        self.co60_hist_list[index].update({'co60_peak_info': co60_peaks})
         pprint(self.co60_hist_list)
-
         return #self.co60_peaks
 
     def find_peak_centroid(self, hist_list, peak_info_label):
+        # FIXME
         model = GaussianModel()
         for chan_hist_index in range(len(hist_list)):
             chan_hist = hist_list[chan_hist_index]
@@ -117,6 +116,8 @@ class energy_calibration:
         return
 
     def find_linear_fit_from_co60(self, linear_output_file, OVERWRITE=True):
+        # FIXME
+
         for chan_hist_index in range(len(self.co60_hist_list)):
             pulse_height = []
             chan_hist = self.co60_hist_list[chan_hist_index]
@@ -129,7 +130,25 @@ class energy_calibration:
 
         return
 
-
+    def perform_linear_fit(self, histograms):
+        self.co60_hist_list = []  # List to hold dicts of channel # and histogramed data
+        index = 0
+        for chan_dict_key in histograms.keys():
+            if sum(histograms[chan_dict_key]) > 10000:
+                self.co60_hist_list.append({'chan': chan_dict_key, 'hist': histograms[chan_dict_key]})
+                self.find_co60_peaks(chan_dict_key, index)
+                index = index + 1
+                print(self.co60_hist_list)
+            else:
+                print("index rejected due to too few events:", chan_dict_key)
+        #energy_cal.find_co60_peaks()
+        #energy_cal.find_co60_centroids()
+        #if cal_output_file is None:
+            #linear_output_file = 'testme.lin'
+        #else:
+            #linear_output_file = cal_output_file
+        #energy_cal.find_linear_fit_from_co60(linear_output_file)
+        return
 # Performance stuff
 # 1:20 no calibration
 # 4:40 w/ Calibration (normal list)

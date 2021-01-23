@@ -21,9 +21,29 @@ from lib.energy_calibration import energy_calibration
 # fit peak using lmfit https://millenia.cars.aps.anl.gov/software/python/lmfit/examples/example_use_pandas.html#sphx-glr-examples-example-use-pandas-py
 # find highest peak and next big peak to the right of it
 
+def quad_calibration(midas_files, energy_cal, cores, buffer_size, cal_output_file):
+    my_midas = midas_events(1, 'raw', midas_files, None, None, cores, buffer_size, None, False)
+    my_midas.read_midas_files()
+    return
+
+
+def linear_calibration(midas_files, energy_cal, cores, buffer_size, cal_output_file):
+    my_midas = midas_events(1, 'histo', midas_files, None, None, cores, buffer_size, None, False)
+    my_midas.read_midas_files()
+    #print(my_midas.histo_dict.keys())
+    energy_cal.perform_linear_fit(my_midas.histo_dict)
+    #energy_cal.find_co60_peaks()
+    #energy_cal.find_co60_centroids()
+    #if cal_output_file is None:
+        #linear_output_file = 'testme.lin'
+    #else:
+        #linear_output_file = cal_output_file
+    #energy_cal.find_linear_fit_from_co60(linear_output_file)
+    #return
+
+
 def parse_and_run(args):
     LOAD_FROM_DF_FILE = True
-    event_length = 1  # This isn't a needed concept here so we just set it to one tick of the clock which disables event based stuff
     energy_cal = energy_calibration()
 
     if args.bin_number > (args.max_pulse_height-args.min_pulse_height):
@@ -32,24 +52,24 @@ def parse_and_run(args):
         bin_number = args.bin_number
 
     if args.cal_type == 'linear':
-        my_midas = midas_events(event_length, 'raw', args.co60_midas_files, None, None, args.cores, args.buffer_size, None, False)
+        linear_calibration(args.co60_midas_files, energy_cal, args.cores, args.buffer_size, args.linear_output_file)
     else:
-        my_midas = midas_events(event_length, 'raw', args.eu152_midas_files, None, None, args.cores, args.buffer_size, None, False)
+        quad_calibration(args.eu152_midas_files, energy_cal, args.cores, args.buffer_size, args.quad_output_file)
 
-    if LOAD_FROM_DF_FILE is True:
-        energy_cal.raw_to_histograms(None, args.min_pulse_height, args.max_pulse_height, bin_number, "my_cal2.csv")
-    else:
-        my_midas.read_midas_files()
-        energy_cal.raw_to_histograms(my_midas.particle_hit_buffer, args.min_pulse_height, args.max_pulse_height, args.bin_number)
-    energy_cal.find_co60_peaks()
-    energy_cal.find_co60_centroids()
-    if args.linear_output_file is None:
-        linear_output_file = 'testme.lin'
-    else:
-        linear_output_file = args.linear_output_file
-    energy_cal.find_linear_fit_from_co60(linear_output_file)
-    #plt.hist(my_chan_hist, bins=bin_number, histtype='step')
-    #plt.show()
+    # if LOAD_FROM_DF_FILE is True:
+        # energy_cal.raw_to_histograms(None, args.min_pulse_height, args.max_pulse_height, bin_number, "my_cal2.csv")
+    # else:
+        # my_midas.read_midas_files()
+        # energy_cal.raw_to_histograms(my_midas.particle_hit_buffer, args.min_pulse_height, args.max_pulse_height, args.bin_number)
+    # energy_cal.find_co60_peaks()
+    # energy_cal.find_co60_centroids()
+    # if args.linear_output_file is None:
+        # linear_output_file = 'testme.lin'
+    # else:
+        # linear_output_file = args.linear_output_file
+    # energy_cal.find_linear_fit_from_co60(linear_output_file)
+    # #plt.hist(my_chan_hist, bins=bin_number, histtype='step')
+    # #plt.show()
 
     return
 

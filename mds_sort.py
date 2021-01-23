@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--output_format', dest='output_format', default='csv', required=False,
                         help="Format : ROOT, HISTOGRAM, CSV, HDF5 (DEFAULT  : CSV) (Only CSV fully works right now, ROOT is slow)")
     parser.add_argument('--sort_type', dest='sort_type', default='event', required=False,
-                        help="Type of sort, defaults to event based, can specify 'raw' as well for no sorting")
+                        help="Type of sort, defaults to event based, can specify 'raw' as well for no sorting, 'histo' for histogram")
     parser.add_argument('--no_round', dest='no_round', default=1, required=False,
                         help="Don't round the floats that come in from the DAQ's ** Not implimented yet..")
     parser.add_argument('--cal_file', dest='cal_file', required=False,
