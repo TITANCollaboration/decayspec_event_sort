@@ -93,41 +93,35 @@ class energy_calibration:
         pprint(self.co60_hist_list)
         return #self.co60_peaks
 
-    def find_peak_centroid(self, hist_list, peak_info_label):
-        # FIXME
+    def find_peak_centroid(self, hist_list, peak_info_label, index):
         model = GaussianModel()
-        for chan_hist_index in range(len(hist_list)):
-            chan_hist = hist_list[chan_hist_index]
-            x_vals = np.linspace(1, len(chan_hist['hist']), len(chan_hist['hist'])) # We need even bins, if you don't use this you get crazy bins, no one wants crazy bins.
-            print(chan_hist['chan'])
-            for my_peak_index in range(len(chan_hist[peak_info_label])):
-                my_peak = hist_list[chan_hist_index][peak_info_label][my_peak_index]
+        chan_hist = hist_list[index]
+        x_vals = np.linspace(1, len(chan_hist['hist']), len(chan_hist['hist']))
+        # We need even bins, if you don't use this you get crazy bins, no one wants crazy bins.
+        print(chan_hist['chan'])
+        for my_peak_index in range(len(chan_hist[peak_info_label])):
+            my_peak = hist_list[index][peak_info_label][my_peak_index]
 
-                result = model.fit(chan_hist['hist'], x=x_vals, amplitude=my_peak['est_peak_amp'], center=my_peak['est_peak_center'], sigma=1)  # Does the actual fitting
+            result = model.fit(chan_hist['hist'], x=x_vals, amplitude=my_peak['est_peak_amp'], center=my_peak['est_peak_center'], sigma=1)  # Does the actual fitting
 
-                hist_list[chan_hist_index][peak_info_label][my_peak_index]['fit_peak_center'] = result.params['center'].value
-                hist_list[chan_hist_index][peak_info_label][my_peak_index]['fit_peak_fwhm'] = result.params['fwhm'].value
-                print("Center :", result.params['center'].value, "FWHM :", result.params['fwhm'].value)
-                #print(result.fit_report())
+            hist_list[index][peak_info_label][my_peak_index]['fit_peak_center'] = result.params['center'].value
+            hist_list[index][peak_info_label][my_peak_index]['fit_peak_fwhm'] = result.params['fwhm'].value
+            print("Center :", result.params['center'].value, "FWHM :", result.params['fwhm'].value)
+            #print(result.fit_report())
         return
 
-    def find_co60_centroids(self):
-        self.find_peak_centroid(self.co60_hist_list, 'co60_peak_info')  # Grabbing more of the peak base by *2
+    def find_co60_centroids(self, index):
+        self.find_peak_centroid(self.co60_hist_list, 'co60_peak_info', index)  # Grabbing more of the peak base by *2
         return
 
-    def find_linear_fit_from_co60(self, linear_output_file, OVERWRITE=True):
-        # FIXME
+    def find_linear_fit_from_co60(self, linear_output_file, index, OVERWRITE=True):
+        pulse_height = []
+        chan_hist = self.co60_hist_list[index]
+        for my_peak_index in range(len(chan_hist['co60_peak_info'])):
+            pulse_height.append(self.co60_hist_list[index]['co60_peak_info'][my_peak_index]['fit_peak_center'])
 
-        for chan_hist_index in range(len(self.co60_hist_list)):
-            pulse_height = []
-            chan_hist = self.co60_hist_list[chan_hist_index]
-            for my_peak_index in range(len(chan_hist['co60_peak_info'])):
-                pulse_height.append(self.co60_hist_list[chan_hist_index]['co60_peak_info'][my_peak_index]['fit_peak_center'])
-
-            linear_fit = np.polyfit(pulse_height, self.co60_energy_vals, 1)  # Least squares polynomial fit.
-            self.co60_hist_list[chan_hist_index].update({'linear_fit': linear_fit})
-        pprint(self.co60_hist_list)
-
+        linear_fit = np.polyfit(pulse_height, self.co60_energy_vals, 1)  # Least squares polynomial fit.
+        self.co60_hist_list[index].update({'linear_fit': linear_fit})
         return
 
     def perform_linear_fit(self, histograms):
@@ -137,17 +131,16 @@ class energy_calibration:
             if sum(histograms[chan_dict_key]) > 10000:
                 self.co60_hist_list.append({'chan': chan_dict_key, 'hist': histograms[chan_dict_key]})
                 self.find_co60_peaks(chan_dict_key, index)
+                self.find_co60_centroids(index)
+                #if cal_output_file is None:
+                    #linear_output_file = 'testme.lin'
+                #else:
+                    #linear_output_file = cal_output_file
+                self.find_linear_fit_from_co60("myfile.cal", index)
                 index = index + 1
-                print(self.co60_hist_list)
+                pprint(self.co60_hist_list)
             else:
                 print("index rejected due to too few events:", chan_dict_key)
-        #energy_cal.find_co60_peaks()
-        #energy_cal.find_co60_centroids()
-        #if cal_output_file is None:
-            #linear_output_file = 'testme.lin'
-        #else:
-            #linear_output_file = cal_output_file
-        #energy_cal.find_linear_fit_from_co60(linear_output_file)
         return
 # Performance stuff
 # 1:20 no calibration
