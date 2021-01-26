@@ -1,5 +1,6 @@
 import pandas as pd
 import pathlib
+import csv
 
 
 class input_handler:
@@ -14,6 +15,12 @@ class input_handler:
             self.read_in_csv()
         return self.mydata_df
 
+    def read_in_histo_csv(self):
+        with open(self.input_filename) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter='|')
+            for row in csv_reader:
+                print(row)
+
     def read_in_csv(self):
         try:
             self.mydata_df = pd.read_csv(self.input_filename, sep='|', engine='c')
@@ -22,3 +29,10 @@ class input_handler:
             exit(1)
         #print(self.mydata_df)
         return 0
+
+    def read_in_pandas_histogram(self):
+        my_hist_dict = {}
+        df = pd.read_csv(self.input_filename)
+        for my_column in df.columns:
+            my_hist_dict.update({my_column: df[my_column].values})
+        return my_hist_dict

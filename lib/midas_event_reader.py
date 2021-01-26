@@ -26,7 +26,7 @@ class midas_events:
         self.output_format = output_format
         self.checkpoint_EOB_timestamp = 0
         self.entries_read_in_buffer = 0
-
+        self.histo_dict = {}
         self.end_of_tevent = False
         self.MAX_GRIF16_CHANNELS = 16
         # FOR GRIF16 use chan 0-15
@@ -62,13 +62,13 @@ class midas_events:
         return particle_hit
 
     def check_and_write_queue(self, event_queue, particle_event_list, myoutput):
-        self.write_events_to_file = False
+        #self.write_events_to_file = False
         while event_queue.qsize() > 0:
             particle_event_list.extend(event_queue.get())
+        if self.sort_type == 'histo':
+            self.histo_dict = particle_event_list
         if self.write_events_to_file is True:
             myoutput.write_events(particle_event_list)
-        else:
-            self.histo_dict = particle_event_list
         return []
 
     def read_midas_files(self):

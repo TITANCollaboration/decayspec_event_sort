@@ -5,6 +5,7 @@ import numpy as np
 import scipy.signal
 from lmfit.models import LorentzianModel, GaussianModel
 from pprint import pprint
+import matplotlib.pyplot as plt
 #from lmfit import Model
 
 class energy_calibration:
@@ -46,6 +47,7 @@ class energy_calibration:
         return hit_list
 
     def raw_to_histograms(self, particle_hit_list, min_pulse_height, max_pulse_height, nbins, save_dataframe_file=None):
+        #  No longer used, have it go directly from MIDAS to histogram now.
         self.co60_hist_list = []  # List to hold dicts of channel # and histogramed data
         nbins_array = np.linspace(1, max_pulse_height, nbins) # We need even bins, if you don't use this you get crazy bins, no one wants crazy bins.
         print("Converting to Pandas Dataframe...")
@@ -88,8 +90,9 @@ class energy_calibration:
                                'est_peak_width': peak_properties['widths'][my_peak_index],
                                'est_peak_amp': peak_properties['peak_heights'][my_peak_index],
                                'fit_peak_center': None,
-                               'fit_peak_fwhm': None})
-        self.co60_hist_list[index].update({'co60_peak_info': co60_peaks})
+                               'fit_peak_fwhm': None,
+                               'full_fit_results': None})
+        self.co60_hist_list[index].update({'peak_info': co60_peaks})
         pprint(self.co60_hist_list)
         return #self.co60_peaks
 
@@ -101,24 +104,26 @@ class energy_calibration:
         print(chan_hist['chan'])
         for my_peak_index in range(len(chan_hist[peak_info_label])):
             my_peak = hist_list[index][peak_info_label][my_peak_index]
-
+            #x_vals_around_peak = np.linspace(my_peak['est_peak_center'] - 50, my_peak['est_peak_center'] + 50, 100)
             result = model.fit(chan_hist['hist'], x=x_vals, amplitude=my_peak['est_peak_amp'], center=my_peak['est_peak_center'], sigma=1)  # Does the actual fitting
 
             hist_list[index][peak_info_label][my_peak_index]['fit_peak_center'] = result.params['center'].value
             hist_list[index][peak_info_label][my_peak_index]['fit_peak_fwhm'] = result.params['fwhm'].value
+            hist_list[index][peak_info_label][my_peak_index]['full_fit_results'] = result
+
             print("Center :", result.params['center'].value, "FWHM :", result.params['fwhm'].value)
             #print(result.fit_report())
         return
 
     def find_co60_centroids(self, index):
-        self.find_peak_centroid(self.co60_hist_list, 'co60_peak_info', index)  # Grabbing more of the peak base by *2
+        self.find_peak_centroid(self.co60_hist_list, 'peak_info', index)  # Grabbing more of the peak base by *2
         return
 
     def find_linear_fit_from_co60(self, linear_output_file, index, OVERWRITE=True):
         pulse_height = []
         chan_hist = self.co60_hist_list[index]
-        for my_peak_index in range(len(chan_hist['co60_peak_info'])):
-            pulse_height.append(self.co60_hist_list[index]['co60_peak_info'][my_peak_index]['fit_peak_center'])
+        for my_peak_index in range(len(chan_hist['peak_info'])):
+            pulse_height.append(self.co60_hist_list[index]['peak_info'][my_peak_index]['fit_peak_center'])
 
         linear_fit = np.polyfit(pulse_height, self.co60_energy_vals, 1)  # Least squares polynomial fit.
         self.co60_hist_list[index].update({'linear_fit': linear_fit})
@@ -142,6 +147,36 @@ class energy_calibration:
             else:
                 print("index rejected due to too few events:", chan_dict_key)
         return
+
+    def plot_fit(self, cal_source='co60'):
+        if cal_source == 'co60':
+            hit_list = self.co60_hist_list
+            my_title = "Co60 Calibration"
+        elif cal_source == 'eu152':
+            hit_list = self.eu152_hist_list
+            my_title = "Eu152 Calibration"
+
+        chan_index = 0
+        fig, axs = plt.subplots(len(hit_list), squeeze=False, sharex=True, sharey=True)
+
+        for my_chan in hit_list:
+            x_vals = np.linspace(1, len(my_chan['hist']), len(my_chan['hist']))
+
+            axs[chan_index][0].step(x_vals, my_chan['hist'], label='Chan:' + str(my_chan['chan']))  # Generate line graph that will overlay bar graph
+            peak_index = 0
+
+            for my_peak in my_chan['peak_info']:
+                axs[chan_index][0].plot(x_vals, my_peak['full_fit_results'].best_fit, label='Best Fit, peak: ' + str(peak_index))
+                peak_index = peak_index + 1
+            chan_index = chan_index + 1
+
+        plt.title(my_title)
+        plt.xlabel("Bin")
+        plt.ylabel("Count")
+        plt.legend(loc='best')
+        plt.show()
+        return
+
 # Performance stuff
 # 1:20 no calibration
 # 4:40 w/ Calibration (normal list)

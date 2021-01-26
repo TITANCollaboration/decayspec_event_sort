@@ -49,13 +49,15 @@ class output_handler:
         pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
         pd_particle_events.to_hdf(self.filename, key='stage', mode='a')
 
-    def write_csv_file_pandas(particle_events, filename, first_write):
+    def write_csv_file_pandas(self, particle_events):
         # while simple this is rather slow and memory intensive, especially the converting to pandas part
         print("Converting to Pandas Dataframe")
+        for dict_key in list(particle_events.keys()):
+            if sum(particle_events[dict_key]) < 10:  # Git rid of any channel that is only noise, we define that as having fewer than 10 hits
+                del particle_events[dict_key]
         pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
-        print("Writing to CSV file :", filename)
-
-        pd_particle_events.to_csv(filename, sep='|', header=first_write, index=False, chunksize=50000, mode='a', encoding='utf-8')
+        print("Writing to CSV file :", self.filename)
+        pd_particle_events.to_csv(self.filename, sep='|', header=self.first_write, index=False, chunksize=50000, mode='w', encoding='utf-8')
 
     def write_csv_file(self, particle_events):
         print("\nWriting to CSV file :", self.filename)
@@ -78,34 +80,19 @@ class output_handler:
                                                            "chan": uproot.newbranch(numpy.dtype(">i8"), size="hit_count"),
                                                            "timestamp": uproot.newbranch(numpy.dtype(">i8"))}, compression=None)
 
-    def show_histogram(self, particle_events):
-        import matplotlib as plt
-        import seaborn as sns
-        # histos.py takes care of this initial funcationality but I will switch it over to be able to output
-        # histogram data
-        #pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
-        #myhist = pd_particle_events[pd_particle_events['chan'] == 0].hist(column='pulse_height', bins=1000)
-        #plt.pyplot.show()
-        #myhist.plot()
-        #plt.show()
-        #return 0
-
     # *************************************************************************************
     # write_particle_events()
     # Determine what file type is chosen, default to ROOT and select the appropriate function
     # *************************************************************************************
     def write_events(self, particle_events):
         if self.sort_type == 'histo':
-            print("Skipping writing for now.. please add me later..")
-            return
-        if self.file_type.upper() == "ROOT":
+            self.write_csv_file_pandas(particle_events)
+        elif self.file_type.upper() == "ROOT":
             if self.first_write:
                 self.file_handle = self.open_root_file()
             self.write_root_file(particle_events)
-        if self.file_type.upper() == "HISTOGRAM":
-            self.show_histogram(particle_events)
-        if self.file_type == "HDF5":
+        elif self.file_type == "HDF5":
             self.write_hdf_file(particle_events)
-        if self.file_type == "CSV":
+        elif self.file_type == "CSV":
             self.write_csv_file(particle_events)
         self.first_write = False

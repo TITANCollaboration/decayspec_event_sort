@@ -5,7 +5,7 @@
 #  * Requirements : Python 3, matplotlib, probably something other stuff numpy,scipy...
 # *************************************************************************************
 import argparse
-from lib.read_in_data import input_handler
+from lib.input_handler import input_handler
 from lib.histogram_generator import hist_gen
 
 
@@ -25,7 +25,7 @@ def parse_and_run(args):
     #if args.channel_num is None:
     #    myhist.create_chan_histogram(mydata_df)
     #else:
-    myhist.create_chan_basic_histograms(mydata_df, args.channel_num)
+    myhist.create_chan_basic_histograms_from_df(mydata_df, args.channel_num)
     return
 
 

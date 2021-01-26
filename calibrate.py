@@ -7,6 +7,8 @@
 import argparse
 from lib.midas_event_reader import midas_events
 from lib.energy_calibration import energy_calibration
+from lib.input_handler import input_handler
+
 #from matplotlib import pyplot as plt
 # Should be able to suck in multiple .mid files and figure out what channels were used.
 
@@ -21,55 +23,32 @@ from lib.energy_calibration import energy_calibration
 # fit peak using lmfit https://millenia.cars.aps.anl.gov/software/python/lmfit/examples/example_use_pandas.html#sphx-glr-examples-example-use-pandas-py
 # find highest peak and next big peak to the right of it
 
-def quad_calibration(midas_files, energy_cal, cores, buffer_size, cal_output_file):
-    my_midas = midas_events(1, 'raw', midas_files, None, None, cores, buffer_size, None, False)
-    my_midas.read_midas_files()
-    return
-
-
-def linear_calibration(midas_files, energy_cal, cores, buffer_size, cal_output_file):
-    my_midas = midas_events(1, 'histo', midas_files, None, None, cores, buffer_size, None, False)
-    my_midas.read_midas_files()
-    #print(my_midas.histo_dict.keys())
-    energy_cal.perform_linear_fit(my_midas.histo_dict)
-    #energy_cal.find_co60_peaks()
-    #energy_cal.find_co60_centroids()
-    #if cal_output_file is None:
-        #linear_output_file = 'testme.lin'
-    #else:
-        #linear_output_file = cal_output_file
-    #energy_cal.find_linear_fit_from_co60(linear_output_file)
-    #return
-
 
 def parse_and_run(args):
     LOAD_FROM_DF_FILE = True
     energy_cal = energy_calibration()
 
-    if args.bin_number > (args.max_pulse_height-args.min_pulse_height):
-        bin_number = args.max_pulse_height-args.min_pulse_height
+    save_hist = False
+    if args.save_hist_file is not None:
+        save_hist = True
+
+    my_midas = midas_events(1, 'histo', args.midas_files, args.save_hist_file, 'csv', args.cores, args.buffer_size, None, save_hist)
+
+    if args.load_hist_file is not None:
+        hist_input = input_handler(args.load_hist_file)
+        my_midas.histo_dict = hist_input.read_in_pandas_histogram()
     else:
-        bin_number = args.bin_number
+        my_midas.read_midas_files()
 
     if args.cal_type == 'linear':
-        linear_calibration(args.co60_midas_files, energy_cal, args.cores, args.buffer_size, args.linear_output_file)
+        energy_cal.perform_linear_fit(my_midas.histo_dict)
     else:
-        quad_calibration(args.eu152_midas_files, energy_cal, args.cores, args.buffer_size, args.quad_output_file)
+        print("Quad fit here!")
 
-    # if LOAD_FROM_DF_FILE is True:
-        # energy_cal.raw_to_histograms(None, args.min_pulse_height, args.max_pulse_height, bin_number, "my_cal2.csv")
-    # else:
-        # my_midas.read_midas_files()
-        # energy_cal.raw_to_histograms(my_midas.particle_hit_buffer, args.min_pulse_height, args.max_pulse_height, args.bin_number)
-    # energy_cal.find_co60_peaks()
-    # energy_cal.find_co60_centroids()
-    # if args.linear_output_file is None:
-        # linear_output_file = 'testme.lin'
-    # else:
-        # linear_output_file = args.linear_output_file
-    # energy_cal.find_linear_fit_from_co60(linear_output_file)
-    # #plt.hist(my_chan_hist, bins=bin_number, histtype='step')
-    # #plt.show()
+    if args.lin_plot:
+        energy_cal.plot_fit(cal_source='co60')
+    if args.quad_plot:
+        energy_cal.plot_fit(cal_source='eu152')
 
     return
 
@@ -81,26 +60,24 @@ def main():
                         help="Number of cpu cores to use while processing.  Note more cores will use more memory as the buffer will be multiplied by cores")
     parser.add_argument('--buffer_size', dest='buffer_size', type=int, default=500000, required=False,
                         help="Buffer size, determines how many hits to read in before sorting and writing.  Larger buffer == more ram used")
-    parser.add_argument('--co60_midas_files', dest='co60_midas_files', type=str, nargs='+', required=False,
-                        help="Path to the Midas file(s) to read, supports wildcards. Must be 60Co files")
-    parser.add_argument('--eu152_midas_files', dest='eu152_midas_files', type=str, nargs='+', required=False,
-                        help="Path to the Midas file(s) to read, supports wildcards. Must be 152eu files")
-    parser.add_argument('--linear_input_file', dest='linear_input_file', required=False,
-                        help="File containing linear fits for detectors")
-    parser.add_argument('--linear_output_file', dest='linear_output_file', required=False,
-                        help="File to write linear calibrations to")
+    parser.add_argument('--midas_files', dest='midas_files', type=str, nargs='+', default=None, required=False,
+                        help="Path to the Midas file(s) to read, supports wildcards.")
+    parser.add_argument('--load_hist', dest='load_hist_file', default=None, required=False,
+                        help="Histogram file to read in to avoid re-reading MIDAS data")
+    parser.add_argument('--save_hist', dest='save_hist_file', default=None, required=False,
+                        help="File name of to write histogram to for quicker loads with --load_hist")
     parser.add_argument('--quad_output_file', dest='quad_output_file', required=False,
                         help="File to write Quadratic calibrations to")
-    parser.add_argument('--chan', dest='channel_num', nargs='+', type=int, required=False,  # wont' require forever..
-                        help="channel or list of channels to graph --chan 0 1 3")
     parser.add_argument('--xmax', dest='max_pulse_height', type=int, default=60000, required=False,  # Set a little low to throw out any junk at the end
-                        help="Max Pulse Height")
+                        help="*DISABLED* Max Pulse Height")
     parser.add_argument('--xmin', dest='min_pulse_height', type=int, default=1, required=False,  # wont' require forever..
-                        help="Min Pulse Height")
-    parser.add_argument('--nbins', dest='bin_number', type=int, default=60000, required=False,  # wont' require forever..
-                        help="Number of bins, will default to the smaller of 1000 or max_pulse_height - min_pulse_height")
+                        help="*DISABLED* Min Pulse Height")
     parser.add_argument('--cal_type', dest='cal_type', required=False, default='linear',  # wont' require forever..
                         help="Calibration Type: linear or quadratic, for the quadratic you must already have a linear fit file generated via 60Co")
+    parser.add_argument('--lin_plot', action='store_true', dest='lin_plot', required=False,  # wont' require forever..
+                        help="Plot Linear fit of Co60")
+    parser.add_argument('--quad_plot', action='store_true', dest='quad_plot', required=False,  # wont' require forever..
+                        help="Plot Quadratic fit of Eu152")
 
     args, unknown = parser.parse_known_args()
 

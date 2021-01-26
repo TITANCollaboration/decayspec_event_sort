@@ -15,7 +15,7 @@ class hist_gen:
         self.xlabel = xlabel
         self.ylabel = ylabel
 
-    def create_chan_basic_histograms(self, mydata_df, channels):
+    def create_chan_basic_histograms_from_df(self, mydata_df, channels):
         if channels is None:
             channels = mydata_df.chan.unique()
         self.fig, self.axes = plt.subplots(num=None, figsize=(16, 12), dpi=80, facecolor='w', edgecolor='k') #sharex=True, sharey=True,
