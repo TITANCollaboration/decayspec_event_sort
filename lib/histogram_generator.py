@@ -34,3 +34,14 @@ class hist_gen:
         plt.ylabel(self.ylabel)
         plt.show()
         return 0
+
+    # Generic plotter of existing histogram data.  Pass it a histogram in a single dataframe and it'll do it's best.
+    # This is mostly used when going from GEANT4's root histogram output to a dataframe to a plot of said histogram..
+    # This has been useful suprissingly often...
+    def plot_hitogram_from_df_raw(self, mydata_df):
+        fig, axs = plt.subplots(1, sharex=True, sharey=True)
+        nbins_array_weird = np.linspace(1, max_pulse_height, nbins-1)
+        axs.step(nbins_array_weird, mydict['0'])  # Generate line graph that will overlay bar graph
+        plt.show()
+
+        return 0

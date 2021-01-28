@@ -25,7 +25,6 @@ from lib.input_handler import input_handler
 
 
 def parse_and_run(args):
-    LOAD_FROM_DF_FILE = True
     energy_cal = energy_calibration()
 
     save_hist = False
@@ -41,8 +40,9 @@ def parse_and_run(args):
         my_midas.read_midas_files()
 
     if args.cal_type == 'linear':
-        energy_cal.perform_linear_fit(my_midas.histo_dict)
-    else:
+        energy_cal.perform_fit(my_midas.histo_dict, 'linear')
+    elif args.cal_type == 'quad':
+        energy_cal.perform_fit(my_midas.histo_dict, 'quad')
         print("Quad fit here!")
 
     if args.lin_plot:
@@ -73,7 +73,7 @@ def main():
     parser.add_argument('--xmin', dest='min_pulse_height', type=int, default=1, required=False,  # wont' require forever..
                         help="*DISABLED* Min Pulse Height")
     parser.add_argument('--cal_type', dest='cal_type', required=False, default='linear',  # wont' require forever..
-                        help="Calibration Type: linear or quadratic, for the quadratic you must already have a linear fit file generated via 60Co")
+                        help=" Calibration Type: (linear, quad) linear or quadratic, for the quadratic you must already have a linear fit file generated via 60Co")
     parser.add_argument('--lin_plot', action='store_true', dest='lin_plot', required=False,  # wont' require forever..
                         help="Plot Linear fit of Co60")
     parser.add_argument('--quad_plot', action='store_true', dest='quad_plot', required=False,  # wont' require forever..

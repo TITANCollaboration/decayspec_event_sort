@@ -2,7 +2,6 @@ import pandas as pd
 import pathlib
 import csv
 
-
 class input_handler:
 
     def __init__(self, input_filename):
@@ -36,3 +35,11 @@ class input_handler:
         for my_column in df.columns:
             my_hist_dict.update({my_column: df[my_column].values})
         return my_hist_dict
+
+    def read_in_ROOT(self):
+        # This could be useful to write?
+        import uproot
+        root_file = uproot.open(self.input_filename)
+        pulse_height = root_file["EVENT_NTUPLE"]["pulse_height"].array().astype(int)
+        # More stuff here, maybe convert to a pandas dataframe? Maybe this is fine? so many questions..
+        return pulse_height

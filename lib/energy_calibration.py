@@ -16,9 +16,13 @@ class energy_calibration:
         self.MIN_CHAN_COUNT = 10000
         self.co60_hit_list = None
         self.co60_energy_vals = [1173.228, 1332.492]
-
-        #peak_dict = {'peak_pulse_height': 0, 'peak_center_index': 0, 'est_peak_width': 0, 'est_peak_amp': 0}
+        self.co60_hist_list = []
         self.co60_peaks = []
+        self.eu152_hist_list = []
+        self.eu152_peaks = []
+        self.eu152_energy_vals = [121.7817, 244.6974, 344.2785, 778.9045, 964.057, 1112.076, 1408.013]  # Taken from https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp?nuc=152EU&unc=nds
+        # doubleful : 433.9606 ,
+        #peak_dict = {'peak_pulse_height': 0, 'peak_center_index': 0, 'est_peak_width': 0, 'est_peak_amp': 0}
         #self.read_in_calibration_file()
         return
 
@@ -72,29 +76,41 @@ class energy_calibration:
                 print("! Discarding Channel", my_chan, "due to total channel hits being below the min threshold of", self.MIN_CHAN_COUNT, "total counts.")
         return
 
-    def find_co60_peaks(self, chan, index):
-        # Find the Co 60 peaks, we need a reasonable amount of data to do this, > 10,000 hits but more is better
-        # Look for tallest peak and see if that lines up with a found peak using scipy.signal.find_peaks, if it does that's our first Co60 line
-        # Then just move to the next found peak index and that is our 2nd Co60 peak.  We could also take a look at widths as the 2 Co60 peaks should also
-        # have the smallest widths
-        chan_hist = self.co60_hist_list[index]
-        # We need around 2000 counts of the first peak..
-        peak_indexes, peak_properties = scipy.signal.find_peaks(chan_hist['hist'], height=1000, prominence=2000, width=1, distance=5)  # Find all the major peaks
-        first_co60_peak = np.where(chan_hist['hist'] == np.amax(chan_hist['hist']))[0][0]  # Find the 1173 peak, will(should) be the biggest or something is wrong..
-        # Trying to move the below under the channel so we get all channels..
-        first_co60_peak_index = np.where(peak_indexes == first_co60_peak)[0][0]
-        second_co60_peak_index = first_co60_peak_index + 1  # We look just to the right on the biggest peak to find the 1332 peak
-        co60_peaks = []
-        for my_peak_index in first_co60_peak_index, second_co60_peak_index:
-            co60_peaks.append({'est_peak_center': peak_indexes[my_peak_index],
-                               'est_peak_width': peak_properties['widths'][my_peak_index],
-                               'est_peak_amp': peak_properties['peak_heights'][my_peak_index],
-                               'fit_peak_center': None,
-                               'fit_peak_fwhm': None,
-                               'full_fit_results': None})
-        self.co60_hist_list[index].update({'peak_info': co60_peaks})
-        pprint(self.co60_hist_list)
-        return #self.co60_peaks
+    def find_peaks(self, index, hist_list, peak_finder_dict):
+        chan_hist = hist_list[index]
+        tallest_peak = np.amax(chan_hist['hist'])
+        tallest_peak_index = np.where(chan_hist['hist'] == tallest_peak)[0][0]  # ONly care about peaks to the right of this for both co60 and eu152
+        prominence = tallest_peak * peak_finder_dict['prominence_fraction_of_tallest_peak']
+        peak_indexes, peak_properties = scipy.signal.find_peaks(chan_hist['hist'],
+                                                                height=peak_finder_dict['min_height'],
+                                                                prominence=prominence,
+                                                                width=peak_finder_dict['min_width'],
+                                                                distance=peak_finder_dict['min_distance_between'])  # Find all the major peaks
+
+        print("Peak Indexs:", peak_indexes)
+        # print("Peak Properties:", peak_properties)
+        if len(peak_indexes) < peak_finder_dict['num_peaks_needed']:
+            print("Could not find the", peak_finder_dict['num_peaks_needed'], " needed peaks... INDEXES FOUND:", peak_indexes)
+            exit(1)
+        try:
+            tallest_peak_index_in_found_peaks = np.where(peak_indexes == tallest_peak_index)[0][0]
+        except IndexError:
+            print("Tallest peak index:", tallest_peak_index)
+            print("Could not match tallest peak to a found peak.. Something went terribly wrong")
+            exit(1)
+        peak_info = []
+        for my_peak_index in range(tallest_peak_index_in_found_peaks, len(peak_indexes)):
+            print("My Peak Index:", my_peak_index)
+
+            peak_info.append({'est_peak_center': peak_indexes[my_peak_index],
+                              'est_peak_width': peak_properties['widths'][my_peak_index],
+                              'est_peak_amp': peak_properties['peak_heights'][my_peak_index],
+                              'fit_peak_center': None,
+                              'fit_peak_fwhm': None,
+                              'full_fit_results': None})
+        hist_list[index].update({'peak_info': peak_info})
+        print(hist_list)
+        return
 
     def find_peak_centroid(self, hist_list, peak_info_label, index):
         model = GaussianModel()
@@ -115,35 +131,46 @@ class energy_calibration:
             #print(result.fit_report())
         return
 
-    def find_co60_centroids(self, index):
-        self.find_peak_centroid(self.co60_hist_list, 'peak_info', index)  # Grabbing more of the peak base by *2
-        return
-
-    def find_linear_fit_from_co60(self, linear_output_file, index, OVERWRITE=True):
+    def find_poly_fit(self, hist_list, energy_vals, linear_output_file, index, degree, OVERWRITE=True):
         pulse_height = []
-        chan_hist = self.co60_hist_list[index]
+        chan_hist = hist_list[index]
         for my_peak_index in range(len(chan_hist['peak_info'])):
-            pulse_height.append(self.co60_hist_list[index]['peak_info'][my_peak_index]['fit_peak_center'])
+            pulse_height.append(hist_list[index]['peak_info'][my_peak_index]['fit_peak_center'])
 
-        linear_fit = np.polyfit(pulse_height, self.co60_energy_vals, 1)  # Least squares polynomial fit.
-        self.co60_hist_list[index].update({'linear_fit': linear_fit})
+        poly_fit = np.polyfit(pulse_height, energy_vals, degree)  # Least squares polynomial fit.
+        hist_list[index].update({'poly_fit': poly_fit})
         return
 
-    def perform_linear_fit(self, histograms):
-        self.co60_hist_list = []  # List to hold dicts of channel # and histogramed data
+    def perform_fit(self, histograms, fit_type):
         index = 0
+        eu152_peak_finder_dict = {'prominence_fraction_of_tallest_peak': 1/15,
+                                  'min_height': 20,
+                                  'min_width': 3,
+                                  'min_distance_between': 1,
+                                  'num_peaks_needed': 7}
+
+        co60_peak_finder_dict = {'prominence_fraction_of_tallest_peak': 1/3,
+                                 'min_height': 100,
+                                 'min_width': 3,
+                                 'min_distance_between': 5,
+                                 'num_peaks_needed': 2}
+
         for chan_dict_key in histograms.keys():
             if sum(histograms[chan_dict_key]) > 10000:
-                self.co60_hist_list.append({'chan': chan_dict_key, 'hist': histograms[chan_dict_key]})
-                self.find_co60_peaks(chan_dict_key, index)
-                self.find_co60_centroids(index)
-                #if cal_output_file is None:
-                    #linear_output_file = 'testme.lin'
-                #else:
-                    #linear_output_file = cal_output_file
-                self.find_linear_fit_from_co60("myfile.cal", index)
+                if fit_type == 'quad':
+                    self.eu152_hist_list.append({'chan': chan_dict_key, 'hist': histograms[chan_dict_key]})
+                    self.find_peaks(index, self.eu152_hist_list, eu152_peak_finder_dict)
+                    self.find_peak_centroid(self.eu152_hist_list, 'peak_info', index)  # Grabbing more of the peak base by *2
+                    self.find_poly_fit(self.eu152_hist_list, self.eu152_energy_vals, "myfile.cal", index, 2)
+                    pprint(self.eu152_hist_list)
+                elif fit_type == 'linear':
+                    self.co60_hist_list.append({'chan': chan_dict_key, 'hist': histograms[chan_dict_key]})
+                    #self.find_co60_peaks(index)
+                    self.find_peaks(index, self.co60_hist_list, co60_peak_finder_dict)
+                    self.find_peak_centroid(self.co60_hist_list, 'peak_info', index)  # Grabbing more of the peak base by *2
+                    self.find_poly_fit(self.co60_hist_list, self.co60_energy_vals, "myfile.cal", index, 1)
+                    pprint(self.co60_hist_list)
                 index = index + 1
-                pprint(self.co60_hist_list)
             else:
                 print("index rejected due to too few events:", chan_dict_key)
         return
@@ -151,22 +178,24 @@ class energy_calibration:
     def plot_fit(self, cal_source='co60'):
         if cal_source == 'co60':
             hit_list = self.co60_hist_list
-            my_title = "Co60 Calibration"
+            my_title = "Co60 Found Peaks for Calibration"
         elif cal_source == 'eu152':
             hit_list = self.eu152_hist_list
-            my_title = "Eu152 Calibration"
+            my_title = "Eu152 Found Peaks for Calibration"
 
         chan_index = 0
         fig, axs = plt.subplots(len(hit_list), squeeze=False, sharex=True, sharey=True)
 
         for my_chan in hit_list:
             x_vals = np.linspace(1, len(my_chan['hist']), len(my_chan['hist']))
-
             axs[chan_index][0].step(x_vals, my_chan['hist'], label='Chan:' + str(my_chan['chan']))  # Generate line graph that will overlay bar graph
             peak_index = 0
 
             for my_peak in my_chan['peak_info']:
                 axs[chan_index][0].plot(x_vals, my_peak['full_fit_results'].best_fit, label='Best Fit, peak: ' + str(peak_index))
+                axs[chan_index][0].axvline(x=my_peak['fit_peak_center'], color='red', linestyle='--', ymin=0, ymax=0.75)
+                axs[chan_index][0].text(my_peak['fit_peak_center'], my_peak['est_peak_amp'], round(my_peak['fit_peak_center'], 3), rotation=45)
+
                 peak_index = peak_index + 1
             chan_index = chan_index + 1
 
