@@ -40,9 +40,9 @@ def parse_and_run(args):
         my_midas.read_midas_files()
 
     if args.cal_type == 'linear':
-        energy_cal.perform_fit(my_midas.histo_dict, 'linear')
+        energy_cal.perform_fit(my_midas.histo_dict, 'linear', args.cal_output_file)
     elif args.cal_type == 'quad':
-        energy_cal.perform_fit(my_midas.histo_dict, 'quad')
+        energy_cal.perform_fit(my_midas.histo_dict, 'quad', args.cal_output_file)
         print("Quad fit here!")
 
     if args.lin_plot:
@@ -66,8 +66,8 @@ def main():
                         help="Histogram file to read in to avoid re-reading MIDAS data")
     parser.add_argument('--save_hist', dest='save_hist_file', default=None, required=False,
                         help="File name of to write histogram to for quicker loads with --load_hist")
-    parser.add_argument('--quad_output_file', dest='quad_output_file', required=False,
-                        help="File to write Quadratic calibrations to")
+    parser.add_argument('--cal_output_file', dest='cal_output_file', required=False,
+                        help="File calibration file")
     parser.add_argument('--xmax', dest='max_pulse_height', type=int, default=60000, required=False,  # Set a little low to throw out any junk at the end
                         help="*DISABLED* Max Pulse Height")
     parser.add_argument('--xmin', dest='min_pulse_height', type=int, default=1, required=False,  # wont' require forever..

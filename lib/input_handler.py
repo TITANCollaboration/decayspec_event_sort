@@ -31,7 +31,7 @@ class input_handler:
 
     def read_in_pandas_histogram(self):
         my_hist_dict = {}
-        df = pd.read_csv(self.input_filename)
+        df = pd.read_csv(self.input_filename, sep='|')
         for my_column in df.columns:
             my_hist_dict.update({my_column: df[my_column].values})
         return my_hist_dict

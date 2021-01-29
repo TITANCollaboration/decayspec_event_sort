@@ -1,5 +1,4 @@
 from configobj import ConfigObj
-from numpy.polynomial.polynomial import polyval
 import pandas as pd
 import numpy as np
 import scipy.signal
@@ -30,17 +29,34 @@ class energy_calibration:
         # Read in the calibration file making appropriate dict of polynomial coefficients
         print("Going to read in the config file...")
         config = ConfigObj(self.cal_file)
-        for adc in config.keys():
-            adc_prefix = int(config[adc]['prefix'])
-            for adc_channel in config[adc]:
-                if adc_channel != "prefix":
-                    # Sorry about this line.. I put the channel + prefix as a dict key and then the coefficients as a numpy array as the value of that key
-                    # leads to something like : {12: array([1., 2., 3.]), 13: array([2., 2., 3.]), 14: array([1. , 0.5]), 15: array([1. , 0.5])}
-                    self.cal_dict[int(config[adc][adc_channel]['chan']) + adc_prefix] = np.array(list(map(float, config[adc][adc_channel]['cal_coef'].split())))
+        for channel in config.keys():
+            self.cal_dict[int(config[channel]['chan'])] = np.array(config[channel]['cal_coef'], dtype=float)
+        return
+
+    def extend_cal_object(self, hist_list, config):
+        for my_hist in hist_list:
+            config['CHAN' + str(my_hist['chan'])] = {}
+            config['CHAN' + str(my_hist['chan'])]['chan'] = my_hist['chan']
+            config['CHAN' + str(my_hist['chan'])]['cal_coef'] = my_hist['poly_fit'].tolist()
+        return
+
+    def write_calibration_file(self, cal_output_file):
+        config = ConfigObj()
+        config.filename = cal_output_file
+        self.extend_cal_object(self.co60_hist_list, config)
+        self.extend_cal_object(self.eu152_hist_list, config)
+        config.write()
+        return
 
     def calibrate_hit(self, hit):
         # Performs a polynomial calibration onto an individual pulse height
-        hit['pulse_height'] = polyval(hit['pulse_height'], self.cal_dict[hit['chan']], tensor=False)
+        #print("Hi: ", np.polyval(self.cal_dict[hit['chan']], hit['pulse_height']))
+        #print("\n")
+        #exit(0)
+        if hit['chan'] in self.cal_dict.keys():
+            hit['pulse_height'] = round(np.polyval(self.cal_dict[hit['chan']], hit['pulse_height']))
+            if hit['pulse_height'] > 65536:
+                hit['pulse_height'] = 65536  # Overflow!
         return hit
 
     def calibrate_list(self, hit_list):
@@ -141,7 +157,7 @@ class energy_calibration:
         hist_list[index].update({'poly_fit': poly_fit})
         return
 
-    def perform_fit(self, histograms, fit_type):
+    def perform_fit(self, histograms, fit_type, cal_output_file):
         index = 0
         eu152_peak_finder_dict = {'prominence_fraction_of_tallest_peak': 1/15,
                                   'min_height': 20,
@@ -173,7 +189,25 @@ class energy_calibration:
                 index = index + 1
             else:
                 print("index rejected due to too few events:", chan_dict_key)
+        self.write_calibration_file(cal_output_file)
         return
+
+    def eq_text_from_fit(self, poly_fit):
+        my_fit_eq = ""
+        poly_degree_index = len(poly_fit) - 1
+        for poly_fit_term in poly_fit:
+            if poly_fit_term > 0:
+                my_fit_term = '+' + str(round(poly_fit_term, 3))
+            else:
+                my_fit_term = str(round(poly_fit_term, 3))
+            my_fit_eq = my_fit_eq + my_fit_term
+            if poly_degree_index > 1:
+                my_fit_eq = my_fit_eq + 'x^' + str(poly_degree_index)
+            elif poly_degree_index == 1:
+                my_fit_eq = my_fit_eq + 'x'
+            poly_degree_index = poly_degree_index - 1
+        print("Terms in fit.. ", my_fit_eq)
+        return my_fit_eq
 
     def plot_fit(self, cal_source='co60'):
         if cal_source == 'co60':
@@ -190,13 +224,22 @@ class energy_calibration:
             x_vals = np.linspace(1, len(my_chan['hist']), len(my_chan['hist']))
             axs[chan_index][0].step(x_vals, my_chan['hist'], label='Chan:' + str(my_chan['chan']))  # Generate line graph that will overlay bar graph
             peak_index = 0
+            plt.title(my_title)
 
+            tallest_peak = 0
+            rightmost_peak = 0
             for my_peak in my_chan['peak_info']:
                 axs[chan_index][0].plot(x_vals, my_peak['full_fit_results'].best_fit, label='Best Fit, peak: ' + str(peak_index))
                 axs[chan_index][0].axvline(x=my_peak['fit_peak_center'], color='red', linestyle='--', ymin=0, ymax=0.75)
                 axs[chan_index][0].text(my_peak['fit_peak_center'], my_peak['est_peak_amp'], round(my_peak['fit_peak_center'], 3), rotation=45)
+                if my_peak['est_peak_amp'] > tallest_peak:
+                    tallest_peak = my_peak['est_peak_amp']
+                if my_peak['fit_peak_center'] > rightmost_peak:
+                    rightmost_peak= my_peak['fit_peak_center']
 
                 peak_index = peak_index + 1
+            my_fit_eq = self.eq_text_from_fit(my_chan['poly_fit'])
+            axs[chan_index][0].text(rightmost_peak/2, tallest_peak, "Chan: " + str(my_chan['chan']) + "- Fit Equation : " + my_fit_eq, fontsize=15)
             chan_index = chan_index + 1
 
         plt.title(my_title)
