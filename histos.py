@@ -25,7 +25,10 @@ def parse_and_run(args):
     #if args.channel_num is None:
     #    myhist.create_chan_histogram(mydata_df)
     #else:
-    myhist.create_chan_basic_histograms_from_df(mydata_df, args.channel_num)
+    if args.data_type == 'raw':
+        myhist.create_chan_basic_histograms_from_raw_df(mydata_df, args.channel_num)
+    elif args.data_type == 'histo':
+        myhist.create_chan_basic_histograms_from_histo_df(mydata_df, args.channel_num)
     return
 
 
@@ -35,21 +38,21 @@ def main():
 
     parser.add_argument('--data_file', dest='input_filename', required=True,
                         help="path to data file from mds_sort")
-    parser.add_argument('--chan', dest='channel_num', nargs='+', type=int, required=False,  # wont' require forever..
+    parser.add_argument('--chan', dest='channel_num', nargs='+', default=[0], type=int, required=False,
                         help="channel or list of channels to graph --chan 0 1 3")
-    parser.add_argument('--xmax', dest='max_pulse_height', type=int, default=65535, required=False,  # wont' require forever..
+    parser.add_argument('--xmax', dest='max_pulse_height', type=int, default=65535, required=False,
                         help="Max Pulse Height")
-    parser.add_argument('--xmin', dest='min_pulse_height', type=int, default=0, required=False,  # wont' require forever..
+    parser.add_argument('--xmin', dest='min_pulse_height', type=int, default=0, required=False,
                         help="Min Pulse Height")
-    parser.add_argument('--nbins', dest='bin_number', type=int, default=65535, required=False,  # wont' require forever..
+    parser.add_argument('--nbins', dest='bin_number', type=int, default=65535, required=False,
                         help="Number of bins, will default to the smaller of 1000 or max_pulse_height - min_pulse_height")
     parser.add_argument('--type', dest='data_type', required=False, default='raw',  # wont' require forever..
-                        help="Data input type, RAW 'raw' or EVENT 'event', raw is the default")
-    parser.add_argument('--title', dest='plot_title', required=False, default=None,  # wont' require forever..
+                        help="Data input type, Histogram 'histo', RAW 'raw' or EVENT 'event'(NOT YET!), raw is the default")
+    parser.add_argument('--title', dest='plot_title', required=False, default=None,
                         help="Title for Histogram")
-    parser.add_argument('--xlabel', dest='xlabel', required=False, default='Pulse Height',  # wont' require forever..
+    parser.add_argument('--xlabel', dest='xlabel', required=False, default='Pulse Height',
                         help="X Axis Label")
-    parser.add_argument('--ylabel', dest='ylabel', required=False, default='Counts',  # wont' require forever..
+    parser.add_argument('--ylabel', dest='ylabel', required=False, default='Counts',
                         help="Y Axis Label")
 
     args, unknown = parser.parse_known_args()
