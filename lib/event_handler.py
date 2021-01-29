@@ -24,10 +24,10 @@ class event_handler:
         if self.sort_type == 'event':
             self.sort_event_based(event_queue, particle_hit_list)
         elif self.sort_type == 'raw':
-            print("RAW output selected")
+            #print("\nRAW output selected")
             self.raw_sorter(event_queue, particle_hit_list)
         elif self.sort_type == 'histo':
-            print("Histogram output selected")
+            #print("\nHistogram output selected")
             self.histo_sorter(particle_hit_list)
         else:
             print("Could not finding an appropriate sorter.  The specified one was:", self.sort_type)
@@ -35,8 +35,10 @@ class event_handler:
 
     def histo_sorter(self, particle_hit_list):
         # This one is weird and has issues running mutliprocessor due to the size of the dicts + arrays
-        if self.calibrate:
-            particle_hit_list = self.energy_calibration.calibrate_list(particle_hit_list)
+        #if self.calibrate:
+            #print("Before:", len(particle_hit_list))
+            #particle_hit_list = self.energy_calibration.calibrate_list(particle_hit_list)
+            #print("After:", len(particle_hit_list))
         for particle_hit in particle_hit_list:
             if particle_hit['chan'] not in self.histo_data_dict.keys():
                 self.histo_data_dict.update({particle_hit['chan']: np.zeros(self.max_pulse_height, dtype=int)})

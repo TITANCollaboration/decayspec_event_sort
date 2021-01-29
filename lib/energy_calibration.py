@@ -11,6 +11,7 @@ class energy_calibration:
 
     def __init__(self, cal_file=None):
         self.cal_file = cal_file
+        self.bin_max = 65536
         self.cal_dict = {}
         self.MIN_CHAN_COUNT = 10000
         self.co60_hit_list = None
@@ -48,6 +49,21 @@ class energy_calibration:
         config.write()
         return
 
+    def calibrate_histograms(self, hit_list_dict):
+        self.read_in_calibration_file()
+        nbins_array = np.linspace(1, self.bin_max, self.bin_max)
+
+        for my_chan in hit_list_dict.keys():
+            if my_chan in self.cal_dict.keys():
+                print("Calibrating Channel:", my_chan)
+                new_hist = np.zeros(self.bin_max, dtype=int)
+                for my_hit_index in range(0, self.bin_max):
+                    cal_pos = round(np.polyval(self.cal_dict[my_chan], my_hit_index))
+                    if cal_pos < self.bin_max:
+                        new_hist[cal_pos] = hit_list_dict[my_chan][my_hit_index]
+                hit_list_dict[my_chan] = new_hist
+        return hit_list_dict
+# {0: array([0, 0, 0, ..., 0, 0, 0]), 10: array([0, 0, 0, ..., 0, 0, 3]), 11: array([3, 0, 0, ..., 0, 0, 0]),
     def calibrate_hit(self, hit):
         # Performs a polynomial calibration onto an individual pulse height
         #print("Hi: ", np.polyval(self.cal_dict[hit['chan']], hit['pulse_height']))

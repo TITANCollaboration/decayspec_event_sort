@@ -9,7 +9,6 @@ from multiprocessing import Process, Queue, SimpleQueue, active_children
 from time import sleep
 from lib.output_handler import output_handler
 
-
 class midas_events:
 
     def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file):
@@ -66,7 +65,12 @@ class midas_events:
         while event_queue.qsize() > 0:
             particle_event_list.extend(event_queue.get())
         if self.sort_type == 'histo':
-            self.histo_dict = particle_event_list
+            from lib.energy_calibration import energy_calibration
+            energy_cal = energy_calibration(self.cal_file)
+            particle_event_list = energy_cal.calibrate_histograms(particle_event_list)
+            #print(particle_event_list)
+            #self.histo_dict = particle_event_list
+            #print(particle_event_list)
         if self.write_events_to_file is True:
             myoutput.write_events(particle_event_list)
         return []
@@ -136,7 +140,6 @@ class midas_events:
                     if len(active_children()) == self.PROCCESS_NUM_LIMIT:
                         while event_queue.qsize() == 0:  # Drain the master queue
                             sleep(.1)
-                        print(event_queue)
                         particle_event_list = self.check_and_write_queue(event_queue, particle_event_list, myoutput)
 
                         for proc in processes:
@@ -150,5 +153,5 @@ class midas_events:
             if self.sort_type == 'histo':
                 particle_event_list = events.histo_data_dict
             particle_event_list = self.check_and_write_queue(event_queue, particle_event_list, myoutput)
-        print("Total hits", total_hits, "Total Pileups:", total_pileups, "Over 16k:", total_over_16k, "Bad Packet:", bad_packet)
+        print("Total hits", total_hits, "Total Pileups:", total_pileups, "Over 16bits:", total_over_16k, "Bad Packet:", bad_packet)
         return 0
