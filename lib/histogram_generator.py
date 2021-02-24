@@ -19,7 +19,7 @@ class hist_gen:
     def create_chan_basic_histograms_from_raw_df(self, mydata_df, channels):
         if channels is None:
             channels = mydata_df.chan.unique()
-        self.fig, self.axes = plt.subplots(num=None, figsize=(16, 12), dpi=80, facecolor='w', edgecolor='k') #sharex=True, sharey=True,
+        self.fig, self.axes = plt.subplots(num=None, figsize=(16, 12), dpi=96, facecolor='w', edgecolor='k') #sharex=True, sharey=True,
         mydata_df[mydata_df['chan'].isin(channels) &
                   (mydata_df['flags'] == self.flags) &
                   (mydata_df['pulse_height'] > self.min_pulse_height) &

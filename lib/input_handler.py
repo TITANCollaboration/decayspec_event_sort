@@ -12,6 +12,8 @@ class input_handler:
         if self.file_suffix == '.csv':
             print("Processing CSV file:", self.input_filename)
             self.read_in_csv()
+        elif self.file_suffix == '.root':
+            self.read_in_root()
         return self.mydata_df
 
     def read_in_histo_csv(self):
@@ -36,10 +38,12 @@ class input_handler:
             my_hist_dict.update({my_column: df[my_column].values})
         return my_hist_dict
 
-    def read_in_ROOT(self):
+    def read_in_root(self):
         # This could be useful to write?
         import uproot
         root_file = uproot.open(self.input_filename)
         pulse_height = root_file["EVENT_NTUPLE"]["pulse_height"].array().astype(int)
+        mydict = {'pulse_height': pulse_height, 'chan': 99, 'flags': 1}
+        self.mydata_df = pd.DataFrame(data=mydict)
         # More stuff here, maybe convert to a pandas dataframe? Maybe this is fine? so many questions..
-        return pulse_height
+        return 0

@@ -15,12 +15,12 @@ class energy_calibration:
         self.cal_dict = {}
         self.MIN_CHAN_COUNT = 10000
         self.co60_hit_list = None
-        self.co60_energy_vals = [1173.228, 1332.492]
+        self.co60_energy_vals = [1173.228, 1332.492] # Taken from https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp?nuc=60CO&unc=nds  2.8
         self.co60_hist_list = []
         self.co60_peaks = []
         self.eu152_hist_list = []
         self.eu152_peaks = []
-        self.eu152_energy_vals = [121.7817, 244.6974, 344.2785, 778.9045, 964.057, 1112.076, 1408.013]  # Taken from https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp?nuc=152EU&unc=nds
+        self.eu152_energy_vals = [121.7817, 244.6974, 344.2785, 778.9045, 964.057, 1112.076, 1408.013]  # Taken from https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp?nuc=152EU&unc=nds 2.8
         # doubleful : 433.9606 ,
         #peak_dict = {'peak_pulse_height': 0, 'peak_center_index': 0, 'est_peak_width': 0, 'est_peak_amp': 0}
         #self.read_in_calibration_file()
@@ -160,7 +160,7 @@ class energy_calibration:
             hist_list[index][peak_info_label][my_peak_index]['full_fit_results'] = result
 
             print("Center :", result.params['center'].value, "FWHM :", result.params['fwhm'].value)
-            #print(result.fit_report())
+            print(result.fit_report())
         return
 
     def find_poly_fit(self, hist_list, energy_vals, linear_output_file, index, degree, OVERWRITE=True):
@@ -194,14 +194,14 @@ class energy_calibration:
                     self.find_peaks(index, self.eu152_hist_list, eu152_peak_finder_dict)
                     self.find_peak_centroid(self.eu152_hist_list, 'peak_info', index)  # Grabbing more of the peak base by *2
                     self.find_poly_fit(self.eu152_hist_list, self.eu152_energy_vals, "myfile.cal", index, 2)
-                    pprint(self.eu152_hist_list)
+                    #pprint(self.eu152_hist_list)
                 elif fit_type == 'linear':
                     self.co60_hist_list.append({'chan': chan_dict_key, 'hist': histograms[chan_dict_key]})
                     #self.find_co60_peaks(index)
                     self.find_peaks(index, self.co60_hist_list, co60_peak_finder_dict)
                     self.find_peak_centroid(self.co60_hist_list, 'peak_info', index)  # Grabbing more of the peak base by *2
                     self.find_poly_fit(self.co60_hist_list, self.co60_energy_vals, "myfile.cal", index, 1)
-                    pprint(self.co60_hist_list)
+                    #pprint(self.co60_hist_list)
                 index = index + 1
             else:
                 print("index rejected due to too few events:", chan_dict_key)
@@ -255,7 +255,7 @@ class energy_calibration:
 
                 peak_index = peak_index + 1
             my_fit_eq = self.eq_text_from_fit(my_chan['poly_fit'])
-            axs[chan_index][0].text(rightmost_peak/2, tallest_peak, "Chan: " + str(my_chan['chan']) + "- Fit Equation : " + my_fit_eq, fontsize=15)
+            axs[chan_index][0].text(0, tallest_peak, "Chan: " + str(my_chan['chan']) + "- Fit Equation : " + my_fit_eq, fontsize=15)
             chan_index = chan_index + 1
 
         plt.title(my_title)
