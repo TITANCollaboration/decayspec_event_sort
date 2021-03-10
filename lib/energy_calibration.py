@@ -257,7 +257,6 @@ class energy_calibration:
             my_fit_eq = self.eq_text_from_fit(my_chan['poly_fit'])
             axs[chan_index][0].text(0, tallest_peak, "Chan: " + str(my_chan['chan']) + "- Fit Equation : " + my_fit_eq, fontsize=15)
             chan_index = chan_index + 1
-
         plt.title(my_title)
         plt.xlabel("Bin")
         plt.ylabel("Count")
