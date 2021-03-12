@@ -72,8 +72,6 @@ def main():
                         help="Min Pulse Height")
     parser.add_argument('--nbins', dest='bin_number', type=int, default=65535, required=False,
                         help="Number of bins, will default to the smaller of 1000 or max_pulse_height - min_pulse_height")
-    parser.add_argument('--type', dest='data_type', required=False, default='raw',  # wont' require forever..
-                        help="Data input type, Histogram 'histo', RAW 'raw' or EVENT 'event'(NOT YET!), raw is the default")
     parser.add_argument('--title', dest='plot_title', required=False, default=None,
                         help="Title for Histogram")
     parser.add_argument('--save_file', dest='save_file', required=False, default=None,

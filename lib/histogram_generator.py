@@ -47,7 +47,6 @@ class hist_gen:
             plt.yscale("log")
         if self.smoothing is True:
             my_hist = self.gaussian_smoothing(my_hist)
-        print(my_hist)
         self.axes.step(energy_axis, my_hist, where='mid')
         if (self.energy_labels is not None):
             self.label_peaks(ymax, self.min_pulse_height, self.max_pulse_height, height=0.03)
@@ -59,8 +58,6 @@ class hist_gen:
         if self.zoom is True:
             sub_axes = plt.axes([.5, .5, .37, .35])  # Location of zoomed section in relation to main graph ;  [left, bottom, width, height]
             ymax_sub = energy_axis[self.zoom_xmin:self.zoom_xmax].max()
-            print(energy_axis[self.zoom_xmin:self.zoom_xmax])
-            print(my_hist[self.zoom_xmin:self.zoom_xmax])
             sub_axes.step(energy_axis[self.zoom_xmin:self.zoom_xmax], my_hist[self.zoom_xmin:self.zoom_xmax], where='mid')  # Draw insert graph
             sub_axes.set_xlim([self.zoom_xmin, self.zoom_xmax])  # Set x-axis for insert graph
             sub_axes.tick_params(labelsize=self.tick_font_size)
@@ -102,7 +99,9 @@ class hist_gen:
             print("Summing channel:", my_chan)
             if my_chan != 'summed_hist':  # Make sure we don't sum out summing column.. yup..
                 mydata_df['summed_hist'] = mydata_df[str(my_chan)] + mydata_df['summed_hist']
-        energy_axis = np.linspace(1, self.max_pulse_height, len(mydata_df['summed_hist'].values), dtype=int)
+        #energy_axis = np.linspace(1, self.max_pulse_height, len(mydata_df['summed_hist'].values), dtype=int)
+        energy_axis = np.linspace(1, len(mydata_df['summed_hist'].values), len(mydata_df['summed_hist'].values), dtype=int)
+
         my_hist = mydata_df['summed_hist']
         return energy_axis, my_hist
 
@@ -126,7 +125,7 @@ class hist_gen:
 
         else:  # Loop through each channel
             if channels is not None:
-                #print("Available Channels in data set :", list(mydata_df.columns))
+                print("Available Channels in data set :", list(mydata_df.columns))
                 for my_chan in channels:
                     print("Graphing channel:", my_chan)
                     if input_type == 'raw':
@@ -137,12 +136,8 @@ class hist_gen:
                     elif input_type == 'histo':
                         print("Histo!")
                         if my_chan in list(mydata_df.columns.astype(int)):
-                            print(mydata_df.columns)
-                            print("Values?", len(mydata_df[str(my_chan)].values))
-
                             energy_axis = np.linspace(1, len(mydata_df[str(my_chan)].values), len(mydata_df[str(my_chan)].values), dtype=int)
                             my_hist = mydata_df[str(my_chan)].values
-                            print("My energy Axis:", energy_axis)
                     if (my_hist is not None) and (energy_axis is not None):
                         self.create_chan_basic_histograms(my_hist, energy_axis)
 
