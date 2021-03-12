@@ -227,6 +227,7 @@ class energy_calibration:
 
     def plot_fit(self, cal_source='co60'):
         if cal_source == 'co60':
+            print("Going to calibrate for Co60")
             hit_list = self.co60_hist_list
             my_title = "Co60 Found Peaks for Calibration"
         elif cal_source == 'eu152':
@@ -234,6 +235,7 @@ class energy_calibration:
             my_title = "Eu152 Found Peaks for Calibration"
 
         chan_index = 0
+        print(hit_list)
         fig, axs = plt.subplots(len(hit_list), squeeze=False, sharex=True, sharey=True)
 
         for my_chan in hit_list:

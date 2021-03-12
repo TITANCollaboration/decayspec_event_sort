@@ -68,9 +68,7 @@ class midas_events:
             from lib.energy_calibration import energy_calibration
             energy_cal = energy_calibration(self.cal_file)
             particle_event_list = energy_cal.calibrate_histograms(particle_event_list)
-            #print(particle_event_list)
-            #self.histo_dict = particle_event_list
-            #print(particle_event_list)
+            self.histo_dict = particle_event_list
         if self.write_events_to_file is True:
             myoutput.write_events(particle_event_list)
         return []
@@ -120,7 +118,7 @@ class midas_events:
                     particle_hits.extend(particle_hit)
                 if self.sort_type == 'histo' and (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
                     self.end_of_tevent = False
-                    # Yes, this histogram stuff is special and I had issues integrating it into the multiprocessor stuff due to weird queue deadlocks due to size
+                    # Yes, this histogram stuff is special and I had issues integrating it into the multiprocessor stuff due to weird queue deadlocks due to size of buffer
                     events.sort_events(event_queue, particle_hits)
                     self.entries_read_in_buffer = -1
                 elif (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:

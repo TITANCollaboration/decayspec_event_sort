@@ -49,12 +49,13 @@ class output_handler:
         pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
         pd_particle_events.to_hdf(self.filename, key='stage', mode='a')
 
-    def write_csv_file_pandas(self, particle_events):
+    def write_histo_csv_file_pandas(self, particle_events):
         # while simple this is rather slow and memory intensive, especially the converting to pandas part
         print("Converting to Pandas Dataframe")
         for dict_key in list(particle_events.keys()):
             if sum(particle_events[dict_key]) < 10:  # Git rid of any channel that is only noise, we define that as having fewer than 10 hits
                 del particle_events[dict_key]
+                #list(my_dict.items()),columns = ['Products','Prices']
         pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
         print("Writing to CSV file :", self.filename)
         pd_particle_events.to_csv(self.filename, sep='|', header=self.first_write, index=False, chunksize=50000, mode='w', encoding='utf-8')
@@ -86,7 +87,7 @@ class output_handler:
     # *************************************************************************************
     def write_events(self, particle_events):
         if self.sort_type == 'histo':
-            self.write_csv_file_pandas(particle_events)
+            self.write_histo_csv_file_pandas(particle_events)
         elif self.file_type.upper() == "ROOT":
             if self.first_write:
                 self.file_handle = self.open_root_file()

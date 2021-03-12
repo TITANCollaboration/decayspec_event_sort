@@ -10,6 +10,12 @@ from lib.histogram_generator import hist_gen
 
 
 def parse_and_run(args):
+    sum_all = False
+    zoom_min = None
+    zoom_max = None
+    if args.channels is None:
+        sum_all = True
+
     myinput = input_handler(args.input_filename)
     mydata_df = myinput.read_in_data()
     if args.bin_number > (args.max_pulse_height-args.min_pulse_height):
@@ -21,6 +27,16 @@ def parse_and_run(args):
         title = args.input_filename
     else:
         title = args.plot_title
+    if args.zoom is True:
+        if (args.zoom_min is None) or (args.zoom_min < args.min_pulse_height):
+            zoom_min = args.min_pulse_height
+        else:
+            zoom_min = args.zoom_min
+        if (args.zoom_max is None) or (args.zoom_max > args.max_pulse_height):
+            zoom_max = args.max_pulse_height
+        else:
+            zoom_max = args.zoom_max
+
     myhist = hist_gen(args.max_pulse_height,
                       args.min_pulse_height,
                       bin_number,
@@ -29,14 +45,12 @@ def parse_and_run(args):
                       args.ylabel,
                       args.energy_labels,
                       args.y_axis_min,
-                      args.y_axis_max)
-    #if args.channel_num is None:
-    #    myhist.create_chan_histogram(mydata_df)
-    #else:
-    if args.data_type == 'raw':
-        myhist.create_chan_basic_histograms_from_raw_df(mydata_df, args.channel_num)
-    elif args.data_type == 'histo':
-        myhist.create_chan_basic_histograms_from_histo_df(mydata_df, args.channel_num)
+                      args.y_axis_max,
+                      args.zoom,
+                      zoom_min,
+                      zoom_max)
+
+    myhist.grapher(mydata_df, args.channels, sum_all)
     return
 
 
@@ -46,15 +60,15 @@ def main():
 
     parser.add_argument('--data_file', dest='input_filename', required=True,
                         help="path to data file from mds_sort")
-    parser.add_argument('--chan', dest='channel_num', nargs='+', default=[0], type=int, required=False,
-                        help="channel or list of channels to graph --chan 0 1 3")
+    parser.add_argument('--chan', dest='channels', nargs='+', default=None, type=int, required=False,
+                        help="channel or list of channels to graph --chan 0 1 3, **if not specified will SUM all channels")
     parser.add_argument('--xmax', dest='max_pulse_height', type=int, default=65535, required=False,
                         help="Max Pulse Height")
     parser.add_argument('--xmin', dest='min_pulse_height', type=int, default=0, required=False,
                         help="Min Pulse Height")
     parser.add_argument('--ymax', dest='y_axis_max', type=int, default=None, required=False,
                         help="Max Pulse Height")
-    parser.add_argument('--ymin', dest='y_axis_min', type=int, default=None, required=False,
+    parser.add_argument('--ymin', dest='y_axis_min', type=int, default=0, required=False,
                         help="Min Pulse Height")
     parser.add_argument('--nbins', dest='bin_number', type=int, default=65535, required=False,
                         help="Number of bins, will default to the smaller of 1000 or max_pulse_height - min_pulse_height")
@@ -70,8 +84,12 @@ def main():
                         help="Y Axis Label")
     parser.add_argument('--energy_labels', dest='energy_labels', required=False, nargs='+', default=[],
                         help="Y Axis Label")
-
-
+    parser.add_argument('--zoom', action='store_true', dest='zoom', required=False,  # wont' require forever..
+                        help="Enable Zoomed window")
+    parser.add_argument('--zoom_min',  dest='zoom_min', default=None, type=int, required=False,  # wont' require forever..
+                        help="Min bin # for zoom region")
+    parser.add_argument('--zoom_max',  dest='zoom_max', default=None, type=int, required=False,  # wont' require forever..
+                        help="Max bin # for zoom region")
     args, unknown = parser.parse_known_args()
 
     parse_and_run(args)
