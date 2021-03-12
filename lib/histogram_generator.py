@@ -68,8 +68,8 @@ class hist_gen:
                 plt.yscale("linear")
         self.axes.set_xlim([self.min_pulse_height, self.max_pulse_height])
         if self.y_axis_max is None:
-            print("still working on this, please use --ymax..")
-        #self.axes.set_ylim([self.y_axis_min, self.y_axis_max])
+            self.y_axis_max = my_hist[self.min_pulse_height:self.max_pulse_height].max() * 1.2
+        self.axes.set_ylim([self.y_axis_min, self.y_axis_max])
         plt.show()
         return 0
 
