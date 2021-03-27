@@ -7,7 +7,7 @@
 import argparse
 from lib.input_handler import input_handler
 from lib.histogram_generator import hist_gen
-
+import pathlib
 
 def parse_and_run(args):
     sum_all = False
@@ -37,7 +37,12 @@ def parse_and_run(args):
         else:
             zoom_max = args.zoom_max
 
-    myhist = hist_gen(args.max_pulse_height,
+    input_file_wo_suffix = args.input_filename[:-5]
+
+    myhist = hist_gen(input_file_wo_suffix,
+                      args.save_all,
+                      args.overlay_files,
+                      args.max_pulse_height,
                       args.min_pulse_height,
                       bin_number,
                       title,
@@ -60,6 +65,10 @@ def main():
 
     parser.add_argument('--data_file', dest='input_filename', required=True,
                         help="path to data file from mds_sort")
+    parser.add_argument('--overlay_files', dest='overlay_files', type=str, nargs='+', default=None, required=False,
+                        help="Read in overlay file(s), supports wildcards.")
+    parser.add_argument('--save', action='store_true', dest='save_all', required=False,
+                        help="path to data file you wish to save pandas histogram data to for future use.")
     parser.add_argument('--chan', dest='channels', nargs='+', default=None, type=int, required=False,
                         help="channel or list of channels to graph --chan 0 1 3, **if not specified will SUM all channels")
     parser.add_argument('--xmax', dest='max_pulse_height', type=int, default=65535, required=False,
@@ -74,8 +83,8 @@ def main():
                         help="Number of bins, will default to the smaller of 1000 or max_pulse_height - min_pulse_height")
     parser.add_argument('--title', dest='plot_title', required=False, default=None,
                         help="Title for Histogram")
-    parser.add_argument('--save_file', dest='save_file', required=False, default=None,
-                        help="File to save histogram to (csv)")
+#    parser.add_argument('--save_file', dest='save_file', required=False, default=None,
+#                        help="File to save histogram to (csv)")
     parser.add_argument('--xlabel', dest='xlabel', required=False, default='Pulse Height',
                         help="X Axis Label")
     parser.add_argument('--ylabel', dest='ylabel', required=False, default='Counts',
