@@ -9,7 +9,7 @@ class input_handler:
         self.file_suffix = pathlib.Path(input_filename).suffix
 
     def read_in_data(self):
-        if self.file_suffix == '.csv':
+        if (self.file_suffix == '.csv') or (self.file_suffix == '.hist'):
             print("Processing CSV file:", self.input_filename)
             self.read_in_csv()
         elif self.file_suffix == '.root':
