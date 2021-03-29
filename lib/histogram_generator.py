@@ -1,3 +1,7 @@
+###################################################
+# Library to read in histogram data or raw data and create complicated histograms
+###################################################
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,95 +9,101 @@ from math import sqrt, ceil
 from scipy.ndimage import gaussian_filter1d
 from lib.input_handler import input_handler
 
-#from lib.output_handler import output_handler
-
 
 class hist_gen:
     def __init__(self, input_filename, save_all, overlay_files, max_pulse_height, min_pulse_height, bin_number, title, xlabel, ylabel, energy_labels, y_axis_min, y_axis_max, zoom, zoom_xmin, zoom_xmax):
-        self.flags = 1
-        self.min_pulse_height = min_pulse_height
-        self.max_pulse_height = max_pulse_height
-        self.bins = bin_number
-        self.title = title
-        self.xlabel = xlabel
-        self.ylabel = ylabel
-        self.energy_labels = energy_labels
-        self.zoom_xmin = zoom_xmin
-        self.zoom_xmax = zoom_xmax
+        self.flags = 1  # if there is a flag that needs to be used for the root file raw data
+        self.min_pulse_height = min_pulse_height  # min x value
+        self.max_pulse_height = max_pulse_height  # max x value
+        self.bins = bin_number  # Max bin count
+        self.title = title  # main graph title
+        self.xlabel = xlabel  # x axis label, main graph
+        self.ylabel = ylabel  # y axis label, main graph
+        self.energy_labels = energy_labels  # Which peaks to label
+        self.zoom_xmin = zoom_xmin  # x min for zoomed region
+        self.zoom_xmax = zoom_xmax  # y min for zoomed region
         self.zoom = zoom
-        self.zoom_label = True
+        self.zoom_label = True  # If should label zoomed region
         self.ylog = False
-        self.ylog_zoom = True
-        self.title_font_size = 20
-        self.axis_font_size = self.title_font_size
-        self.tick_font_size = 20
-        self.label_font_size = 12
-        self.y_axis_min = y_axis_min
-        self.y_axis_max = y_axis_max
-        self.smoothing = False
+        self.ylog_zoom = True  # If zoomed region shold be in log scale
+        self.title_font_size = 20  # Title font size
+        self.axis_font_size = self.title_font_size  # axis font size
+        self.tick_font_size = 20  # Font size for graph tick values
+        self.label_font_size = 12  # Font size for label
+        self.y_axis_min = y_axis_min  # main graph y min
+        self.y_axis_max = y_axis_max  # main graph y max
+        self.smearing = False  # if the histogram should be smeared using gaussing smearing
         self.input_filename = input_filename
-        self.save_all = save_all
-        self.overlay_files = overlay_files
-        self.histo_multiplier = 1
-        self.overlay_multiplier = 1
-        self.y_axis_sub_min = 1e3
-        self.y_axis_sub_max = 3e4
+        self.save_all = save_all  # If a hist datafile should be saved
+        self.overlay_files = overlay_files  # Files for overlays on top of main graph
+        self.histo_multiplier = 1  # overall multiplier to apply to main graph
+        self.overlay_multiplier = 1  # Overall  multiplier to apply to zoomed region
+        self.y_axis_sub_min = 1e3  # zoomed region ymin
+        self.y_axis_sub_max = 3e4  # zoomed region ymax
+        self.overlay_multiplier = [1, 1000, 10000, 100000]  # Multiplies to apply to zoomed region
+        self.overlay_chan = 99  # channel in hist file for overlay (small zoomed graph)
+        self.chan = 99  # channel used for primary graph and for saving to hist format
 
-    def gaussian_smoothing(self, initdata, sigma=1):
-        #p = np.poly1d([0.0000007, 0.00183744, 1.1])  # Griffin smearing
+    def gaussian_smearing(self, initdata, sigma=1):
+        # Apply guassian smearing to data, set via sigma value.
+        # sigma = 1 is approx 2.3keV for FWHM
         newdata = gaussian_filter1d(initdata, sigma=sigma)
         return newdata
 
     def label_peaks(self, axes, my_hist, ymax, label_xmin, label_xmax, height=0.5):
+        # Draw a line at center of peak and put a text label indicating the x value
         for my_label in self.energy_labels:
             if (int(my_label) < label_xmax) and (int(my_label) > label_xmin):
                 axes.axvline(x=int(my_label), color='red', linestyle='--', ymin=0, ymax=0.75, lw=1)
                 axes.text(int(my_label), 20000, str(my_label), rotation=45, fontsize=self.label_font_size)
         return 0
 
+    def sci_notation(self, number, sig_fig=0):
+        # Just put's things into 10^? notation
+        ret_string = "{0:.{1:d}e}".format(number, sig_fig)
+        a, b = ret_string.split("e")
+        b = int(b)
+        return "10^" + str(b)
+
     def graph_with_overlays(self, my_axis, energy_axis, my_hist, zoomed):
-        self.overlay_multipliers = [1, 100, 1000, 10000]  # , 100]
-        #background_data_actual = input_handler('../8pi_bg_1hr.hist')
-        #background_data_df = background_data_actual.read_in_data()
-        #self.overlay_multipliers = [100, 10, 2, 1]
+        # Main graphing function, determines if there is a zoomed region or multipliers
+        # it also handles overlays which is just data form a file to add to the main graph or
+        # zoomed region
         if self.overlay_files is not None:
             for my_overlay_file in self.overlay_files:
 
                 for my_multiplier in self.overlay_multipliers:
                     myinput = input_handler(my_overlay_file)
                     my_overlay_df = myinput.read_in_data()
-                                    #my_overlay_df = np.concatenate(([0], my_overlay_df))
-                    #my_overlay_df = my_overlay_df * self.overlay_multiplier#* self.histo_multiplier  # Just turning 1 day into 8..
+
                     if zoomed is True:
                         my_overlay_df = (my_overlay_df[self.zoom_xmin-1:self.zoom_xmax-1] * my_multiplier)
                     else:
                         my_overlay_df = my_overlay_df * my_multiplier
-                        #print(my_overlay_df)
-                    length_diff = len(my_hist) - len(my_overlay_df['99'])
+                    length_diff = len(my_hist) - len(my_overlay_df[self.overlay_chan])
                     my_zeros = np.zeros(length_diff)
-                    my_overlay_df = np.concatenate((my_overlay_df['99'], my_zeros))
+                    my_overlay_df = np.concatenate((my_overlay_df[self.overlay_chan], my_zeros))
 
                     length_diff = len(my_hist) - len(my_overlay_df)
 
                     combined_hist = 0
                     combined_hist = my_hist + my_overlay_df
-                    if self.smoothing is True:
-                        combined_hist = self.gaussian_smoothing(combined_hist)
-                    my_label = "NEEC x" + str(my_multiplier)
+                    if self.smearing is True:
+                        combined_hist = self.gaussian_smearing(combined_hist)
+                    my_label = "NEEC " + self.sci_notation(my_multiplier)
                     linewidth = 1
                     if zoomed is True:
                         linewidth = 2
                     my_axis.step(energy_axis, combined_hist, where='mid', label=my_label, linewidth=linewidth)
         else:
-            if self.smoothing is True:
-                my_hist = self.gaussian_smoothing(my_hist)
-            #combo_hist = background_data_df['99'] + my_hist
-            #my_axis.step(energy_axis, my_hist, where='mid')
+            if self.smearing is True:
+                my_hist = self.gaussian_smearing(my_hist)
+
             my_axis.step(energy_axis, my_hist, where='mid')
 
-
     def create_chan_basic_histograms(self, my_hist, energy_axis):
-        my_hist = my_hist * self.histo_multiplier  # turn 1 day into 8
+        # Set up all graphing parameters and call graph_with_overlays to actually do the graphing
+        my_hist = my_hist * self.histo_multiplier  # apply multiplier to primary graph
         ymax = my_hist.max()
         self.fig, self.axes = plt.subplots(num=None, figsize=(16, 12), dpi=96, facecolor='w', edgecolor='k')  # sharex=True, sharey=True,
         self.axes.tick_params(labelsize=self.tick_font_size)
@@ -103,7 +113,7 @@ class hist_gen:
         self.graph_with_overlays(self.axes, energy_axis, my_hist, False)
 
         if (self.energy_labels is not None):
-            self.label_peaks( self.axes, my_hist, ymax, self.min_pulse_height, self.max_pulse_height, height=0.03)
+            self.label_peaks(self.axes, my_hist, ymax, self.min_pulse_height, self.max_pulse_height, height=0.03)
 
         plt.title(self.title, fontsize=self.title_font_size)
         plt.xlabel(self.xlabel, fontsize=self.axis_font_size)
@@ -136,12 +146,15 @@ class hist_gen:
         return 0
 
     def determine_input_type(self, columns):
+        # much like the name is, it figures out if we have a root raw file or a pandas histogram
         if 'pulse_height' in columns:
             return 'raw'
         else:
             return 'histo'
 
     def generate_histo_from_raw(self, mydata_df, channels):
+        # read in a raw data file from CSV : chan, pulse_height, flag
+        # It will also save this as a histogram file
         energy_axis = None
         my_hist = None
         pulse_height = mydata_df[mydata_df['chan'].isin(channels) &
@@ -155,26 +168,25 @@ class hist_gen:
         else:
             print("No data found in channel:", channels)
         if self.save_all is True:
-#            myoutput = output_handler(self.input_filename + '.hist', 'histo', 'histo')
             print("Writing file:", self.input_filename + '.hist')
-            mydata_df =  pd.DataFrame(data={'99': my_hist})
+            mydata_df =  pd.DataFrame(data={self.chan: my_hist})
             mydata_df.to_csv(self.input_filename + '.hist', sep='|', header=True, index=False, chunksize=50000, mode='w', encoding='utf-8')
 
-#            myoutput.write_events(my_hist)
-            #print("fix me")
         return energy_axis, my_hist
 
     def generate_histo_from_histo(self, mydata_df, channels):
+        # Read in data from hist file, currently reads in all channels except summed_hist
         for my_chan in channels:
             print("Summing channel:", my_chan)
             if my_chan != 'summed_hist':  # Make sure we don't sum out summing column.. yup..
                 mydata_df['summed_hist'] = mydata_df[str(my_chan)] + mydata_df['summed_hist']
-        #energy_axis = np.linspace(1, self.max_pulse_height, len(mydata_df['summed_hist'].values), dtype=int)
+
         energy_axis = np.linspace(1, len(mydata_df['summed_hist'].values) + 1, len(mydata_df['summed_hist'].values) + 1, dtype=int)
         my_hist = np.concatenate(([0], mydata_df['summed_hist']))
         return energy_axis, my_hist
 
     def grapher(self, mydata_df, channels, sum_all=True):
+        # determine what data we are reading in and call appropriate functions to read and graph
         energy_axis = None
         my_hist = None
         input_type = self.determine_input_type(mydata_df.columns)
