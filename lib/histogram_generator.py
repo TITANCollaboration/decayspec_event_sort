@@ -11,7 +11,7 @@ from lib.input_handler import input_handler
 
 
 class hist_gen:
-    def __init__(self, input_filename, save_all, overlay_files, max_pulse_height, min_pulse_height, bin_number, title, xlabel, ylabel, energy_labels, y_axis_min, y_axis_max, zoom, zoom_xmin, zoom_xmax):
+    def __init__(self, input_filename, save_all, overlay_files, max_pulse_height, min_pulse_height, bin_number, title, xlabel, ylabel, energy_labels, y_axis_min, y_axis_max, zoom, zoom_xmin, zoom_xmax, ylog_zoom):
         self.flags = 1  # if there is a flag that needs to be used for the root file raw data
         self.min_pulse_height = min_pulse_height  # min x value
         self.max_pulse_height = max_pulse_height  # max x value
@@ -25,7 +25,7 @@ class hist_gen:
         self.zoom = zoom
         self.zoom_label = True  # If should label zoomed region
         self.ylog = False
-        self.ylog_zoom = True  # If zoomed region shold be in log scale
+        self.ylog_zoom = ylog_zoom  # If zoomed region shold be in log scale
         self.title_font_size = 20  # Title font size
         self.axis_font_size = self.title_font_size  # axis font size
         self.tick_font_size = 20  # Font size for graph tick values
@@ -38,8 +38,8 @@ class hist_gen:
         self.overlay_files = overlay_files  # Files for overlays on top of main graph
         self.histo_multiplier = 1  # overall multiplier to apply to main graph
         self.overlay_multiplier = 1  # Overall  multiplier to apply to zoomed region
-        self.y_axis_sub_min = 1e3  # zoomed region ymin
-        self.y_axis_sub_max = 3e4  # zoomed region ymax
+        self.y_axis_sub_min = 1  # zoomed region ymin
+        self.y_axis_sub_max = 1e3  # zoomed region ymax
         self.overlay_multiplier = [1, 1000, 10000, 100000]  # Multiplies to apply to zoomed region
         self.overlay_chan = 99  # channel in hist file for overlay (small zoomed graph)
         self.chan = 99  # channel used for primary graph and for saving to hist format

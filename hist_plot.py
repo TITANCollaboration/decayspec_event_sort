@@ -38,7 +38,7 @@ def parse_and_run(args):
             zoom_max = args.zoom_max
 
     input_file_wo_suffix = args.input_filename[:-5]
-
+    print(args.ylog_zoom)
     myhist = hist_gen(input_file_wo_suffix,
                       args.save_all,
                       args.overlay_files,
@@ -53,7 +53,8 @@ def parse_and_run(args):
                       args.y_axis_max,
                       args.zoom,
                       zoom_min,
-                      zoom_max)
+                      zoom_max,
+                      args.ylog_zoom)
 
     myhist.grapher(mydata_df, args.channels, sum_all)
     return
@@ -93,6 +94,8 @@ def main():
                         help="Y Axis Label")
     parser.add_argument('--zoom', action='store_true', dest='zoom', required=False,  # wont' require forever..
                         help="Enable Zoomed window")
+    parser.add_argument('--ylog_zoom', action='store_true', dest='ylog_zoom', required=False,  # wont' require forever..
+                        help="Use log scale for zoom")
     parser.add_argument('--zoom_min',  dest='zoom_min', default=None, type=int, required=False,  # wont' require forever..
                         help="Min bin # for zoom region")
     parser.add_argument('--zoom_max',  dest='zoom_max', default=None, type=int, required=False,  # wont' require forever..
