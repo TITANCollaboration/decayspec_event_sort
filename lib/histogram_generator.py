@@ -73,16 +73,17 @@ class hist_gen:
                            amplitude=my_hist[min_fit_peak+best_index],
                            sigma=1,
                            center=best_index)  # Does the actual fitting
-
-        print(result.fit_report())
-        best_fit = result.best_fit
-        true_peak_center = min_fit_peak + best_index
-        fit_energy_axis = np.linspace(self.fit_peak_xmin,
-                                      self.fit_peak_xmax,
-                                      self.fit_peak_xmax-self.fit_peak_xmin,
-                                      dtype=int)
-        my_axes.plot(fit_energy_axis, best_fit)
-        return true_peak_center, best_fit
+        if result.params['amplitude'].value > 0:
+            print(result.fit_report())
+            best_fit = result.best_fit
+            true_peak_center = min_fit_peak + best_index
+            fit_energy_axis = np.linspace(self.fit_peak_xmin,
+                                          self.fit_peak_xmax,
+                                          self.fit_peak_xmax-self.fit_peak_xmin,
+                                          dtype=int)
+            my_axes.plot(fit_energy_axis, best_fit)
+            return true_peak_center, best_fit
+        return 0, 0
 
     def gaussian_smearing(self, initdata, sigma=1):
         # Apply guassian smearing to data, set via sigma value.
@@ -141,12 +142,13 @@ class hist_gen:
                         linewidth = 2
                     my_axis.step(energy_axis, combined_hist, where='mid', label=my_label, linewidth=linewidth)
                     if self.fit_peak is True and (self.fit_peak_xmin >= self.zoom_xmin) and (self.fit_peak_xmax <= self.zoom_xmax):  # make sure zoom is also between the two fit values
-                        self.gothere = self.gothere + 1
-                        print("Overlay Multiplier:", self.sci_notation(my_multiplier))
-                        self.peak_fitting(combined_hist,
-                                          my_axis,
-                                          self.fit_peak_xmin-self.zoom_xmin,
-                                          self.fit_peak_xmax-self.zoom_xmin)
+                        #self.gothere = self.gothere + 1
+                        if my_multiplier > 0:
+                            print("Overlay Multiplier:", self.sci_notation(my_multiplier))
+                            self.peak_fitting(combined_hist,
+                                              my_axis,
+                                              self.fit_peak_xmin-self.zoom_xmin,
+                                              self.fit_peak_xmax-self.zoom_xmin)
         else:
             if self.smearing is True:
                 my_hist = self.gaussian_smearing(my_hist)
@@ -165,7 +167,8 @@ class hist_gen:
         if self.fit_peak is True:
         #    self.min_pulse_height = self.fit_peak_xmin
         #    self.max_pulse_height = self.fit_peak_xmax
-            true_peak_center, best_fit = self.peak_fitting(my_hist, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
+            #true_peak_center, best_fit = self.peak_fitting(my_hist, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
+            print("Fix me... sometime..")
 
         self.graph_with_overlays(self.axes, energy_axis, my_hist, False)
 

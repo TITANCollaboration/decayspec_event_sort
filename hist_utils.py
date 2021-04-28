@@ -1,3 +1,4 @@
+#!/home/vagrant/anaconda3/envs/pyuproot36/bin/pypy3
 # *************************************************************************************
 # * Written by : Jon Ringuette
 # * Started : January 13 2021 - Still during the plague..
@@ -105,14 +106,14 @@ def main():
 
     parser = argparse.ArgumentParser(description='Histogram Generator')
 
+    parser.add_argument('--data_file', dest='input_filename', default=None, required=False,
+                        help="input filename (.hist)")
     parser.add_argument('--output_file', dest='output_file', default=None, required=False,
                         help="Output file")
     parser.add_argument('--chan', dest='chan', type=str, default=99, required=False,
                         help="channel to perform operations on, default is 99")
     parser.add_argument('--scale', dest='scale', type=float, default=None, required=False,
                         help="Scape Factor")
-    parser.add_argument('--data_file', dest='input_filename', default=None, required=False,
-                        help="input filename (.hist)")
     parser.add_argument('--smear', type=float, dest='smear', default=None, required=False,
                         help="smear histogram, parameter is sigma")
     parser.add_argument('--sum_files',  dest='sum_files', default=None, type=str, nargs='+',
