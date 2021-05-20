@@ -14,9 +14,11 @@ def parse_and_run(args):
     my_online_hist = temporal_histogram_generator(channel=args.channel,
                                                   pulse_height_bin_min=args.pulse_height_bin_min,
                                                   pulse_height_bin_max=args.pulse_height_bin_max)
+    #my_online_hist.display_heatmap()
+    my_online_hist.online_voltage_vs_time_heatmap()
     #print(my_online_hist.get_redis_hist_entry()['unix_ts_ms'])
     #print(my_online_hist.get_redis_queue_length())
-    print(my_online_hist.drain_redis_queue())
+    #print(my_online_hist.drain_redis_queue())
     return
 
 
@@ -30,7 +32,7 @@ def main():
                         help="Redis port")
     parser.add_argument('--redis_queue', dest='redis_queue', required=False,
                         help="Redis queue")
-    parser.add_argument('--channel', dest='channel', type=int, required=False,
+    parser.add_argument('--channel', dest='channel', type=int, default=0, required=False,
                         help="ADC channel # to graph (0-15 for MDPP16)")
     parser.add_argument('--ph_bin_min', dest='pulse_height_bin_min', type=int, required=False,
                         help="Minimum bin # to count towards hit in heatmap (Range: 0-2048)")
