@@ -116,10 +116,12 @@ class midas_events:
                         bad_packet = bad_packet + 1
                 if particle_hit:
                     particle_hits.extend(particle_hit)
+                    #print("Particle Hits:", particle_hits)
                 if self.sort_type == 'histo' and (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
                     self.end_of_tevent = False
                     # Yes, this histogram stuff is special and I had issues integrating it into the multiprocessor stuff due to weird queue deadlocks due to size of buffer
                     events.sort_events(event_queue, particle_hits)
+                    particle_hits = []
                     self.entries_read_in_buffer = -1
                 elif (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
 
