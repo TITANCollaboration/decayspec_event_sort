@@ -9,6 +9,7 @@ from multiprocessing import Process, Queue, SimpleQueue, active_children
 from time import sleep
 from lib.output_handler import output_handler
 
+
 class midas_events:
 
     def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file):
@@ -49,6 +50,15 @@ class midas_events:
         # NOTE!! If event timestamps are out of order in the MIDAS file then there is a chance we will miss events at the MAX_BUFFER_SIZE boundary.
         # So it is a good pratctice to set MAX_BUFFER_SIZE large, > 10,000,000
         # But be careful that you do not go over the timestamp theshold where the timestamp is recycled ~ 2x a day at 100Mhz
+        self.total_hits = 0
+        self.total_pileups = 0
+        self.total_over_16k = 0
+        self.event_queue = Queue()
+        self.bad_packet = 0
+        self.current_process_count = 0
+        self.processes = []
+        self.particle_event_list = []
+        self.particle_hits = []
 
     def decode_raw_hit_event(self, adc_hit_reader_func, bank_data):
         particle_hit = adc_hit_reader_func(bank_data)
@@ -58,12 +68,19 @@ class midas_events:
             if self.entries_read_in_buffer > self.MAX_BUFFER_SIZE:
                 if (particle_hit[-1]["timestamp"] - self.checkpoint_EOB_timestamp) > (self.EVENT_LENGTH + self.EVENT_EXTRA_GAP):
                     self.end_of_tevent = True
+            if particle_hit[0]['flags'] > 1:
+                self.total_pileups = self.total_pileups + 1
+                if particle_hit[0]['pulse_height'] > 65535:
+                    self.total_over_16k = self.total_over_16k + 1
+                else:
+                    self.bad_packet = self.bad_packet + 1
+            self.total_hits = self.total_hits + len(particle_hit)
         return particle_hit
 
     def check_and_write_queue(self, event_queue, particle_event_list, myoutput):
-        #self.write_events_to_file = False
-        while event_queue.qsize() > 0:
-            particle_event_list.extend(event_queue.get())
+        if self.sort_type == 'event':
+            while event_queue.qsize() > 0:
+                particle_event_list.extend(event_queue.get())
         if self.sort_type == 'histo':
             from lib.energy_calibration import energy_calibration
             energy_cal = energy_calibration(self.cal_file)
@@ -82,20 +99,35 @@ class midas_events:
             self.read_midas_events(midas_file)
         return
 
+    def run_threaded_sort(self, event_queue, events, myoutput):
+        if len(active_children()) < self.PROCCESS_NUM_LIMIT:  # Check if we are maxing out process # limit
+            self.checkpoint_EOB_timestamp = 0
+            self.end_of_tevent = False
+            p = Process(target=events.sort_events, args=(event_queue, self.particle_hits), daemon=False)
+            self.processes.append(p)
+            p.start()
+
+            self.current_process_count = self.current_process_count + 1
+            self.particle_hits = []
+            self.entries_read_in_buffer = -1
+            print("\nActive childeren : ", len(active_children()))
+
+        if len(active_children()) == self.PROCCESS_NUM_LIMIT:
+            while event_queue.qsize() == 0:  # Drain the master queue
+                sleep(.1)
+            self.particle_event_list = self.check_and_write_queue(event_queue, self.particle_event_list, myoutput)
+
+            for proc in self.processes:
+                proc.join()
+            self.current_process_count = 0
+
     def read_midas_events(self, midas_file):
-        total_hits = 0
-        particle_hits = []
-        particle_event_list = []
-        processes = []
-        current_process_count = 0
-        total_pileups = 0
-        total_over_16k = 0
+        myoutput = None
         event_queue = Queue()
-        bad_packet = 0
+
         if self.write_events_to_file is True:
             myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
-        else:
-            myoutput = None
+
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file)
         for hit in tqdm(midas_file, unit=' Hits'):
 
@@ -106,52 +138,41 @@ class midas_events:
 
                 elif bank_name == "GRF4":  # Check if this is an event from the GRIF16
                     particle_hit = self.decode_raw_hit_event(grif16.read_all_bank_events, bank.data)
-                    total_hits = total_hits + 1
-                    if particle_hit:
-                        if particle_hit[0]['flags'] > 1:
-                            total_pileups = total_pileups + 1
-                        if particle_hit[0]['pulse_height'] > 65535:
-                            total_over_16k = total_over_16k + 1
-                    else:
-                        bad_packet = bad_packet + 1
+
                 if particle_hit:
-                    particle_hits.extend(particle_hit)
-                    #print("Particle Hits:", particle_hits)
-                if self.sort_type == 'histo' and (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
-                    self.end_of_tevent = False
-                    # Yes, this histogram stuff is special and I had issues integrating it into the multiprocessor stuff due to weird queue deadlocks due to size of buffer
-                    events.sort_events(event_queue, particle_hits)
-                    particle_hits = []
-                    self.entries_read_in_buffer = -1
-                elif (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
+                    self.particle_hits.extend(particle_hit)
 
-                    if len(active_children()) < self.PROCCESS_NUM_LIMIT:  # Check if we are maxing out process # limit
-                        self.checkpoint_EOB_timestamp = 0
+                if (self.entries_read_in_buffer >= self.MAX_BUFFER_SIZE) and self.end_of_tevent is True:
+                    if self.sort_type == 'histo':
                         self.end_of_tevent = False
-                        p = Process(target=events.sort_events, args=(event_queue, particle_hits), daemon=False)
-                        processes.append(p)
-                        p.start()
-
-                        current_process_count = current_process_count + 1
-                        particle_hits = []
+                        # Yes, this histogram stuff is special and I had issues integrating it into the multiprocessor stuff due to weird queue deadlocks due to size of buffer
+                        events.sort_events(0, self.particle_hits)
+                        self.particle_hits = []
                         self.entries_read_in_buffer = -1
-                        print("\nActive childeren : ", len(active_children()))
 
-                    if len(active_children()) == self.PROCCESS_NUM_LIMIT:
-                        while event_queue.qsize() == 0:  # Drain the master queue
-                            sleep(.1)
-                        particle_event_list = self.check_and_write_queue(event_queue, particle_event_list, myoutput)
+                    elif self.sort_type == 'raw':
+                        events.sort_events(0, self.particle_hits)
+                        self.particle_hits = self.check_and_write_queue(0, self.particle_hits, myoutput)  # the output of this function is just []
+                        self.entries_read_in_buffer = -1
+                        self.end_of_tevent = False
 
-                        for proc in processes:
-                            proc.join()
-                        current_process_count = 0
+                    elif self.sort_type == 'event':
+                        self.run_threaded_sort(event_queue, events, myoutput)
+                    else:
+                        print("Sort type not found..")
+                        exit(1)
+
             self.entries_read_in_buffer = self.entries_read_in_buffer + 1
 
-        if (len(particle_hits) > 0) or (self.sort_type == 'histos'):  # Check if we should sort and that there are hits to sort..
+        if (len(self.particle_hits) > 0) or (self.sort_type == 'histos'):  # Check if we should sort and that there are hits to sort..
             print("Processing remaining events in queue...")
-            events.sort_events(event_queue, particle_hits)
-            if self.sort_type == 'histo':
-                particle_event_list = events.histo_data_dict
-            particle_event_list = self.check_and_write_queue(event_queue, particle_event_list, myoutput)
-        print("Total hits", total_hits, "Total Pileups:", total_pileups, "Over 16bits:", total_over_16k, "Bad Packet:", bad_packet)
+            if self.sort_type == 'event':
+                events.sort_events(event_queue, self.particle_hits)
+            elif self.sort_type == 'histo':
+                self.particle_event_list = events.histo_data_dict
+            elif self.sort_type == "raw":
+                self.particle_event_list = self.particle_hits
+            self.particle_event_list = self.check_and_write_queue(event_queue, self.particle_event_list, myoutput)
+
+        print("Total hits", self.total_hits, "Total Pileups:", self.total_pileups, "Over 16bits:", self.total_over_16k, "Bad Packet:", self.bad_packet)
         return 0

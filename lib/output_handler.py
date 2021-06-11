@@ -68,7 +68,7 @@ class output_handler:
             mode_flag = 'w'
 
         with open(self.filename, mode_flag, encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=column_names, delimiter='|')
+            writer = csv.DictWriter(csvfile, fieldnames=column_names, delimiter='|', extrasaction='ignore')
             if self.first_write is True:
                 writer.writeheader()
             for data in particle_events:

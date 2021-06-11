@@ -4,13 +4,14 @@ import numpy as np
 
 
 class event_handler:
-    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file):
+    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file, ppg_data_enabled=False, ppg_data_file=None):
         self.sort_type = sort_type
-        # self.event_queue =
         self.event_length = event_length
         self.event_extra_gap = event_extra_gap
         self.max_hits_per_event = max_hits_per_event
         self.calibrate = calibrate
+        self.ppg_data_enabled = ppg_data_enabled
+        self.ppg_data_file = ppg_data_file
         self.total_count = 0
         self.max_pulse_height = 65536
         if sort_type == "histo":
@@ -20,14 +21,18 @@ class event_handler:
             self.energy_calibration.read_in_calibration_file()
         # events = event_handler(self.sort_type, event_queue, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT)
 
+    def time_correlate_ppg_data(self, particle_hit_list):
+        # time_correlate_ppg_data: The idea here is that it will look to see if the timestamp corresponds to one of the ranges in the
+        #                          ppg time correlation file and if so it'll add that bit of data, this is mainly going to be used for
+        #                          EBIT DT5 voltage values
+        return
+
     def sort_events(self, event_queue, particle_hit_list):
         if self.sort_type == 'event':
-            self.sort_event_based(event_queue, particle_hit_list)
+            self.sort_event_based_thread_safe(event_queue, particle_hit_list)
         elif self.sort_type == 'raw':
-            #print("\nRAW output selected")
             self.raw_sorter(event_queue, particle_hit_list)
         elif self.sort_type == 'histo':
-            #print("\nHistogram output selected")
             self.histo_sorter(particle_hit_list)
         else:
             print("Could not finding an appropriate sorter.  The specified one was:", self.sort_type)
@@ -35,10 +40,10 @@ class event_handler:
 
     def histo_sorter(self, particle_hit_list):
         # This one is weird and has issues running mutliprocessor due to the size of the dicts + arrays
-        #if self.calibrate:
-            #print("Before:", len(particle_hit_list))
-            #particle_hit_list = self.energy_calibration.calibrate_list(particle_hit_list)
-            #print("After:", len(particle_hit_list))
+        if self.calibrate:
+            # print("Before:", len(particle_hit_list))
+            particle_hit_list = self.energy_calibration.calibrate_list(particle_hit_list)
+            # print("After:", len(particle_hit_list))
         for particle_hit in particle_hit_list:
             if particle_hit['chan'] not in self.histo_data_dict.keys():
                 self.histo_data_dict.update({particle_hit['chan']: np.zeros(self.max_pulse_height, dtype=int)})
@@ -50,12 +55,12 @@ class event_handler:
         # This is mostly a dummy function
         if self.calibrate:
             particle_hit_list = self.energy_calibration.calibrate_list(particle_hit_list)
-
-        print("Performing Raw Sorting...")
-        event_queue.put(particle_hit_list)
+        if self.ppg_data_enabled is True:
+            self.time_correlate_ppg_data()
+            print("Do stuff...")
         return
 
-    def sort_event_based(self, event_queue, particle_hit_list):
+    def sort_event_based_thread_safe(self, event_queue, particle_hit_list):
         print("Performing Event Based Sorting...")
         particle_event_list = []
         particle_hit_list = sorted(particle_hit_list, key=operator.itemgetter('timestamp'))

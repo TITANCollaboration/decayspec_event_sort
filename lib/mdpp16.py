@@ -99,7 +99,7 @@ def read_words_for_events(bank_data, show_event=True):
 def read_all_bank_events(bank_data):
     particle_events_list = []
     new_particle_events = []
-    flags = 0
+    flags = 1
 
     # num_words = read_header(bank_data[0], False)
     new_particle_events, timestamp, event_count = read_words_for_events(bank_data[1:], False)
