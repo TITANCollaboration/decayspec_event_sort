@@ -14,7 +14,7 @@ import csv
 class output_handler:
 
     def __init__(self, filename, file_type, sort_type, first_write=True):
-        print("My File Type : ", file_type)
+        print("Output file type:", file_type)
         self.filename = filename
         self.file_type = file_type.upper()
         self.first_write = first_write
@@ -57,11 +57,11 @@ class output_handler:
                 del particle_events[dict_key]
                 #list(my_dict.items()),columns = ['Products','Prices']
         pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
-        print("Writing to CSV file :", self.filename)
+        print("Writing to file :", self.filename)
         pd_particle_events.to_csv(self.filename, sep='|', header=self.first_write, index=False, chunksize=50000, mode='w', encoding='utf-8')
 
     def write_csv_file(self, particle_events):
-        print("\nWriting to CSV file :", self.filename)
+        # print("\nWriting to file :", self.filename)
         column_names = particle_events[0].keys()
         mode_flag = 'a'
         if self.first_write is True:

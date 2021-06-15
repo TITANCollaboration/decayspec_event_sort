@@ -22,7 +22,7 @@ def main():
                         help="Set length of event window, done in ticks @ 100Mhz, 1 tick == 0.001ms")
     parser.add_argument('--cores', dest='cores', type=int, default=2, required=False,
                         help="Number of cpu cores to use while processing.  Note more cores will use more memory as the buffer will be multiplied by cores")
-    parser.add_argument('--buffer_size', dest='buffer_size', type=int, default=500000, required=False,
+    parser.add_argument('--buffer_size', dest='buffer_size', type=int, default=50000, required=False,
                         help="Buffer size, determines how many hits to read in before sorting and writing.  Larger buffer == more ram used")
     parser.add_argument('--output_format', dest='output_format', default='csv', required=False,
                         help="Format : ROOT, HISTOGRAM, CSV, HDF5 (DEFAULT  : CSV) (Only CSV fully works right now, ROOT is slow)")
@@ -30,11 +30,27 @@ def main():
                         help="Type of sort, defaults to event based, can specify 'raw' as well for no sorting, 'histo' for histogram")
     parser.add_argument('--no_round', dest='no_round', default=1, required=False,
                         help="Don't round the floats that come in from the DAQ's ** Not implimented yet..")
-    parser.add_argument('--cal_file', dest='cal_file', required=False,
+    parser.add_argument('--cal_file', dest='cal_file', required=False, default=None,
                         help="Calibration file")
+    parser.add_argument('--ppg_data_file', dest='ppg_data_file', required=False, default=None,
+                        help="PPG Data file (csv)")
+    parser.add_argument('--ppg_value_range', dest='ppg_value_range', required=False, nargs='+', type=float, default=None,
+                        help="min and max values for ppg value to accept event (type: histo).  Ex: --ppg_value_range 1100 1200")
+
 
     args, unknown = parser.parse_known_args()
-    my_midas = midas_events(args.event_length, args.sort_type, args.midas_files, args.output_file, args.output_format, args.cores, args.buffer_size, args.cal_file, True)
+    print("PPG:", args.ppg_value_range)
+    my_midas = midas_events(args.event_length,
+                            args.sort_type,
+                            args.midas_files,
+                            args.output_file,
+                            args.output_format,
+                            args.cores,
+                            args.buffer_size,
+                            args.cal_file,
+                            write_events_to_file=True,
+                            ppg_data_file=args.ppg_data_file,
+                            ppg_value_range=args.ppg_value_range)
     #my_midas.read_midas_events()
     my_midas.read_midas_files()
 

@@ -12,7 +12,7 @@ from lib.output_handler import output_handler
 
 class midas_events:
 
-    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file):
+    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file=False, ppg_data_file=None, ppg_value_range=None):
         if cal_file:
             self.calibrate = True
         else:
@@ -24,6 +24,8 @@ class midas_events:
         self.midas_files = midas_files
         self.output_file = output_file
         self.output_format = output_format
+        self.ppg_data_file = ppg_data_file
+        self.ppg_value_range = ppg_value_range
         self.checkpoint_EOB_timestamp = 0
         self.entries_read_in_buffer = 0
         self.histo_dict = {}
@@ -128,7 +130,7 @@ class midas_events:
         if self.write_events_to_file is True:
             myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
 
-        events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file)
+        events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file, ppg_data_file=self.ppg_data_file, ppg_value_range=self.ppg_value_range)
         for hit in tqdm(midas_file, unit=' Hits'):
 
             for bank_name, bank in hit.banks.items():
@@ -169,8 +171,10 @@ class midas_events:
             if self.sort_type == 'event':
                 events.sort_events(event_queue, self.particle_hits)
             elif self.sort_type == 'histo':
+                events.sort_events(0, self.particle_hits)
                 self.particle_event_list = events.histo_data_dict
             elif self.sort_type == "raw":
+                events.sort_events(0, self.particle_hits)
                 self.particle_event_list = self.particle_hits
             self.particle_event_list = self.check_and_write_queue(event_queue, self.particle_event_list, myoutput)
 
