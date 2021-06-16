@@ -30,7 +30,7 @@ class input_handler:
         self.mydata_plain_csv = []
         try:
             with open(self.input_filename, newline='') as csv_file:
-                reader = csv.DictReader(open(self.input_filename))
+                reader = csv.DictReader(csv_file)
             for row in reader:
                 self.mydata_plain_csv.append(row)
         except:
@@ -44,7 +44,6 @@ class input_handler:
         except:
             print("Something went wrong reading in file :", self.input_filename)
             exit(1)
-        #print(self.mydata_df)
         return 0
 
     def read_in_pandas_histogram(self):
