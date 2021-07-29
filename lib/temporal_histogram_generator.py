@@ -13,7 +13,7 @@ import json
 class temporal_histogram_generator:
     def __init__(self, redis_hostname="localhost", redis_port="6379", redis_queue='mdpp16:queue', channel=0,
                  pulse_height_bin_min=0, pulse_height_bin_max=2048, egun_voltage_min=2000, egun_voltage_max=2700,
-                 egun_voltage_step_size=10, heatmap_type="voltage_v_time", max_time_per_cycle_ms=1000, time_per_cycle_step_size_ms=10,
+                 egun_voltage_step_size=1.3, heatmap_type="voltage_v_time", max_time_per_cycle_ms=1000, time_per_cycle_step_size_ms=10,
                  max_time=60*1000):
         self.tdc_current = 0
         self.current_time_step = 0
