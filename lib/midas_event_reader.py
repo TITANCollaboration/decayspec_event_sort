@@ -1,6 +1,7 @@
 import sys
 sys.path.append('/usr/local/packages/midas/python')
-import midas.file_reader
+#import midas.file_reader
+from midas import file_reader
 import lib.mdpp16 as mdpp16
 import lib.grif16 as grif16
 from tqdm import tqdm
@@ -8,7 +9,7 @@ from lib.event_handler import event_handler
 from multiprocessing import Process, Queue, SimpleQueue, active_children
 from time import sleep
 from lib.output_handler import output_handler
-
+import importlib
 
 class midas_events:
 
@@ -17,7 +18,7 @@ class midas_events:
             self.calibrate = True
         else:
             self.calibrate = False
-
+        self.my_midas_file = None
         self.write_events_to_file = write_events_to_file
         self.particle_hit_buffer = []
         self.sort_type = sort_type
@@ -117,29 +118,26 @@ class midas_events:
             self.current_process_count = 0
 
     def read_midas_files(self):
+
         # read_midas_files : Loops around an array of files that were passed in order to process multiple subruns
         # via wildcards passed on the CLI
         myoutput = None
-        # event_queue = Queue()
 
         if self.write_events_to_file is True:
             myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
 
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file, ppg_data_file=self.ppg_data_file, ppg_value_range=self.ppg_value_range)
+        num = 0  # This is just so we don't delete the MidasFile memory which causes a seg fault with pypy, it's weird, probably Midas memory deallocation error
+        my_midas_file = {}
         for my_file in self.midas_files:
-            my_midas_file = midas.file_reader.MidasFile(my_file)
+            my_midas_file[num] = file_reader.MidasFile(my_file)
             print(my_file)
-            self.read_midas_events(my_midas_file, myoutput, events)
-            del my_midas_file
+            self.read_midas_events(my_midas_file[num], myoutput, events)
+            num = num + 1
         return
 
-    def read_midas_events(self, midas_file, myoutput, events):
-        #for hit in midas_file:
-        hit = 0
-        for hit in tqdm(midas_file, unit=' Hits'):
-            continue
-            return
-            print("Got here!")
+    def read_midas_events(self, my_midas_file, myoutput, events):
+        for hit in tqdm(my_midas_file, unit=' Hits'):
             for bank_name, bank in hit.banks.items():
                 particle_hit = []
                 if bank_name == "MDPP":  # Check if this is an event from the MDPP16
