@@ -61,6 +61,8 @@ class midas_events:
         self.processes = []
         self.particle_event_list = []
         self.particle_hits = []
+        self.event_queue = Queue()
+
 
     def decode_raw_hit_event(self, adc_hit_reader_func, bank_data):
         particle_hit = adc_hit_reader_func(bank_data)
@@ -92,15 +94,6 @@ class midas_events:
             myoutput.write_events(particle_event_list)
         return []
 
-    def read_midas_files(self):
-        # read_midas_files : Loops around an array of files that were passed in order to process multiple subruns
-        # via wildcards passed on the CLI
-        for my_file in self.midas_files:
-            midas_file = midas.file_reader.MidasFile(my_file)
-            print(my_file)
-            self.read_midas_events(midas_file)
-        return
-
     def run_threaded_sort(self, event_queue, events, myoutput):
         if len(active_children()) < self.PROCCESS_NUM_LIMIT:  # Check if we are maxing out process # limit
             self.checkpoint_EOB_timestamp = 0
@@ -123,16 +116,33 @@ class midas_events:
                 proc.join()
             self.current_process_count = 0
 
-    def read_midas_events(self, midas_file):
+    def read_midas_files(self):
+        # read_midas_files : Loops around an array of files that were passed in order to process multiple subruns
+        # via wildcards passed on the CLI
         myoutput = None
-        event_queue = Queue()
+        # event_queue = Queue()
 
         if self.write_events_to_file is True:
             myoutput = output_handler(self.output_file, self.output_format, self.sort_type)
 
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file, ppg_data_file=self.ppg_data_file, ppg_value_range=self.ppg_value_range)
-        for hit in tqdm(midas_file, unit=' Hits'):
+        for my_file in self.midas_files:
+            try:
+                my_midas_file = midas.file_reader.MidasFile(my_file)
+                print(my_file)
+                self.read_midas_events(my_midas_file, myoutput, events)
+                del my_midas_file
+            except:
+                print("What!?!?")
+        return
 
+    def read_midas_events(self, midas_file, myoutput, events):
+        #for hit in midas_file:
+        hit = 0
+        for hit in tqdm(midas_file, unit=' Hits'):
+            continue
+            return
+            print("Got here!")
             for bank_name, bank in hit.banks.items():
                 particle_hit = []
                 if bank_name == "MDPP":  # Check if this is an event from the MDPP16
@@ -159,7 +169,7 @@ class midas_events:
                         self.end_of_tevent = False
 
                     elif self.sort_type == 'event':
-                        self.run_threaded_sort(event_queue, events, myoutput)
+                        self.run_threaded_sort(self.event_queue, events, myoutput)
                     else:
                         print("Sort type not found..")
                         exit(1)
@@ -169,14 +179,14 @@ class midas_events:
         if (len(self.particle_hits) > 0) or (self.sort_type == 'histos'):  # Check if we should sort and that there are hits to sort..
             print("Processing remaining events in queue...")
             if self.sort_type == 'event':
-                events.sort_events(event_queue, self.particle_hits)
+                events.sort_events(self.event_queue, self.particle_hits)
             elif self.sort_type == 'histo':
                 events.sort_events(0, self.particle_hits)
                 self.particle_event_list = events.histo_data_dict
             elif self.sort_type == "raw":
                 events.sort_events(0, self.particle_hits)
                 self.particle_event_list = self.particle_hits
-            self.particle_event_list = self.check_and_write_queue(event_queue, self.particle_event_list, myoutput)
+            self.particle_event_list = self.check_and_write_queue(self.event_queue, self.particle_event_list, myoutput)
 
         print("Total hits", self.total_hits, "Total Pileups:", self.total_pileups, "Over 16bits:", self.total_over_16k, "Bad Packet:", self.bad_packet)
         return 0

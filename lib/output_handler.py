@@ -5,7 +5,6 @@
 import pandas as pd
 #import sys
 #from root_pandas import to_root # This is used for the to_root() method
-import uproot
 import awkward
 import numpy
 import csv
@@ -27,6 +26,8 @@ class output_handler:
     # pandas dataframe out to a root TTREE
     # *************************************************************************************
     def write_root_file(self, particle_events, file_handle):
+        import uproot
+
         print("Getting AWkward..")
         a = awkward.fromiter(particle_events)
         print("Writing ROOT file ...")
@@ -75,6 +76,7 @@ class output_handler:
                 writer.writerow(data)
 
     def open_root_file(self):
+        import uproot
         print("going to open a root file!")
         self.file_handle = uproot.recreate(self.filename)
         self.file_handle["EVENT_NTUPLE"] = uproot.newtree({"pulse_height": uproot.newbranch(numpy.dtype(">i8"), size="hit_count"),
