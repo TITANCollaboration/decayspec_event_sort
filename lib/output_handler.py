@@ -5,7 +5,6 @@
 import pandas as pd
 #import sys
 #from root_pandas import to_root # This is used for the to_root() method
-import awkward
 import numpy
 import csv
 
@@ -27,6 +26,7 @@ class output_handler:
     # *************************************************************************************
     def write_root_file(self, particle_events, file_handle):
         import uproot
+        import awkward
 
         print("Getting AWkward..")
         a = awkward.fromiter(particle_events)
