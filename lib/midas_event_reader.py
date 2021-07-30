@@ -127,13 +127,10 @@ class midas_events:
 
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file, ppg_data_file=self.ppg_data_file, ppg_value_range=self.ppg_value_range)
         for my_file in self.midas_files:
-            try:
-                my_midas_file = midas.file_reader.MidasFile(my_file)
-                print(my_file)
-                self.read_midas_events(my_midas_file, myoutput, events)
-                del my_midas_file
-            except:
-                print("What!?!?")
+            my_midas_file = midas.file_reader.MidasFile(my_file)
+            print(my_file)
+            self.read_midas_events(my_midas_file, myoutput, events)
+            del my_midas_file
         return
 
     def read_midas_events(self, midas_file, myoutput, events):
