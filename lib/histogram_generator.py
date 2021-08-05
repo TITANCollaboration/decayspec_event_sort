@@ -14,8 +14,9 @@ from pprint import pprint
 from lmfit.models import ExpressionModel
 
 class hist_gen:
-    def __init__(self, input_filename, save_all=False, overlay_files=None, max_pulse_height=8192, min_pulse_height=0, title=None, xlabel=None, ylabel=None, energy_labels=None, y_axis_min=None, y_axis_max=None, zoom=False, zoom_xmin=None, zoom_xmax=None, zoom_ymin=None, zoom_ymax=None, ylog_zoom=None, overlay_multipliers=None, output_filename=None, ylog=False):
+    def __init__(self, input_filename, save_all=False, overlay_files=None, max_pulse_height=8192, min_pulse_height=0, title=None, xlabel=None, ylabel=None, energy_labels=None, y_axis_min=0, y_axis_max=None, zoom=False, zoom_xmin=None, zoom_xmax=None, zoom_ymin=None, zoom_ymax=None, ylog_zoom=None, overlay_multipliers=None, output_filename=None, ylog=False, bin_number=None):
         self.flags = 1  # if there is a flag that needs to be used for the root file raw data
+        self.bin_number = bin_number
         self.min_pulse_height = min_pulse_height  # min x value
         self.max_pulse_height = max_pulse_height  # max x value
         self.title = title  # main graph title
@@ -49,8 +50,8 @@ class hist_gen:
         self.fit_peak_xmin = 1155
         self.fit_peak_xmax = 1170
         # --zoom_xmin 1140 --zoom_xmax 1180
-        self.fit_peak = True
-        self.smear_overlay = True
+        self.fit_peak = False
+        self.smear_overlay = False
         self.output_filename = output_filename
         self.gothere = 0
 
@@ -137,7 +138,7 @@ class hist_gen:
                         my_label = "Background"
                     else:
                         my_label = "NEEC " + self.sci_notation(my_multiplier)
-                    linewidth = 1
+                    linewidth = 0.5
                     if zoomed is True:
                         linewidth = 2
                     my_axis.step(energy_axis, combined_hist, where='mid', label=my_label, linewidth=linewidth)
@@ -152,7 +153,7 @@ class hist_gen:
         else:
             if self.smearing is True:
                 my_hist = self.gaussian_smearing(my_hist)
-            my_axis.step(energy_axis, my_hist, where='mid')
+            my_axis.step(energy_axis, my_hist)#, where='mid')
 
     def create_chan_basic_histograms(self, my_hist, energy_axis):
         # Set up all graphing parameters and call graph_with_overlays to actually do the graphing
@@ -197,6 +198,7 @@ class hist_gen:
         self.axes.set_xlim([self.min_pulse_height, self.max_pulse_height])
         if self.y_axis_max is None:
             self.y_axis_max = my_hist[self.min_pulse_height:self.max_pulse_height].max() * 1.2
+        print("Yaxis max", self.y_axis_max)
         self.axes.set_ylim([self.y_axis_min, self.y_axis_max])
         if self.ylog is False:
             self.axes.ticklabel_format(style='plain')
@@ -245,8 +247,12 @@ class hist_gen:
             if my_chan != 'summed_hist':  # Make sure we don't sum out summing column.. yup..
                 mydata_df['summed_hist'] = mydata_df[str(my_chan)] + mydata_df['summed_hist']
 
-        energy_axis = np.linspace(0, len(mydata_df['summed_hist'].values) + 1, len(mydata_df['summed_hist'].values) + 1, dtype=int)
-        my_hist = np.concatenate(([0], mydata_df['summed_hist']))
+        #energy_axis = np.linspace(0, len(mydata_df['summed_hist'].values) + 1, len(mydata_df['summed_hist'].values) + 1, dtype=int)
+        energy_axis = np.linspace(0, len(mydata_df['summed_hist'].values), len(mydata_df['summed_hist'].values), dtype=int)
+#        my_hist = np.concatenate(([0], mydata_df['summed_hist'])) # If this is coming from GEANT4 there is no 0 bin
+        my_hist = mydata_df['summed_hist']  # if it's coming from MIDAS there is a 0 bin
+        print("myhist:", my_hist)
+
         return energy_axis, my_hist
 
     def grapher(self, mydata_df, channels, sum_all=True):
@@ -266,6 +272,7 @@ class hist_gen:
                 channels = mydata_df.columns
                 energy_axis, my_hist = self.generate_histo_from_histo(mydata_df, channels)
             print("Summed channels:", channels)
+            print("Event Count:", np.sum(my_hist[self.min_pulse_height:self.max_pulse_height]))
             self.create_chan_basic_histograms(my_hist, energy_axis)
 
         else:  # Loop through each channel

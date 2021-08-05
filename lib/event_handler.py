@@ -16,7 +16,7 @@ class event_handler:
         self.ppg_value_range = ppg_value_range
 
         self.total_count = 0
-        self.max_pulse_height = 65536
+        self.max_pulse_height = 8192 
         if sort_type == "histo":
             self.histo_data_dict = {}
         if self.calibrate:

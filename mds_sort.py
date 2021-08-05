@@ -18,6 +18,8 @@ def main():
                         help="Path to the Midas file(s) to read, supports wildcards.")
     parser.add_argument('--output_file', dest='output_file', required=True,
                         help="Path to output file")
+    parser.add_argument('--bin_div', dest='bin_div', type=int, default=1, required=False,
+                        help="Divide by this to create bins.  Going from 64k to 8k set value to 8 (only MDPP16)")
     parser.add_argument('--event_length', dest='event_length', type=int, default=1, required=False,
                         help="Set length of event window, done in ticks @ 100Mhz, 1 tick == 0.001ms")
     parser.add_argument('--cores', dest='cores', type=int, default=2, required=False,
@@ -50,7 +52,8 @@ def main():
                             args.cal_file,
                             write_events_to_file=True,
                             ppg_data_file=args.ppg_data_file,
-                            ppg_value_range=args.ppg_value_range)
+                            ppg_value_range=args.ppg_value_range,
+                            bin_div=args.bin_div)
     #my_midas.read_midas_events()
     my_midas.read_midas_files()
 

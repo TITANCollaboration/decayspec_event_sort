@@ -13,11 +13,12 @@ import importlib
 
 class midas_events:
 
-    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file=False, ppg_data_file=None, ppg_value_range=None):
+    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file=False, ppg_data_file=None, ppg_value_range=None, bin_div=1):
         if cal_file:
             self.calibrate = True
         else:
             self.calibrate = False
+        self.bin_div = bin_div
         self.my_midas_file = None
         self.write_events_to_file = write_events_to_file
         self.particle_hit_buffer = []
@@ -66,8 +67,8 @@ class midas_events:
 
 
     def decode_raw_hit_event(self, adc_hit_reader_func, bank_data):
-        particle_hit = adc_hit_reader_func(bank_data)
-        if particle_hit:
+        particle_hit = adc_hit_reader_func(bank_data, self.bin_div)
+        if particle_hit != []:
             if self.entries_read_in_buffer == self.MAX_BUFFER_SIZE:
                 self.checkpoint_EOB_timestamp = particle_hit[-1]["timestamp"]
             if self.entries_read_in_buffer > self.MAX_BUFFER_SIZE:
@@ -80,6 +81,8 @@ class midas_events:
                 else:
                     self.bad_packet = self.bad_packet + 1
             self.total_hits = self.total_hits + len(particle_hit)
+        #    if len(particle_hit) > 1:
+        #        print("Len:", particle_hit)
         return particle_hit
 
     def check_and_write_queue(self, event_queue, particle_event_list, myoutput):
@@ -137,10 +140,12 @@ class midas_events:
         return
 
     def read_midas_events(self, my_midas_file, myoutput, events):
+        #total_mdpp_events = 0
         for hit in tqdm(my_midas_file, unit=' Hits'):
             for bank_name, bank in hit.banks.items():
                 particle_hit = []
                 if bank_name == "MDPP":  # Check if this is an event from the MDPP16
+                #    total_events = total_events + 1
                     particle_hit = self.decode_raw_hit_event(mdpp16.read_all_bank_events, bank.data)
 
                 elif bank_name == "GRF4":  # Check if this is an event from the GRIF16

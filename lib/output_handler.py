@@ -98,4 +98,5 @@ class output_handler:
             self.write_hdf_file(particle_events)
         elif self.file_type == "CSV":
             self.write_csv_file(particle_events)
-        self.first_write = False
+        if self.sort_type != 'histo':
+            self.first_write = False

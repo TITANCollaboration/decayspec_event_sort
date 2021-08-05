@@ -22,7 +22,7 @@ def test_for_footer(word_data):
         return 0
 
 
-def read_all_bank_events(bank_data):
+def read_all_bank_events(bank_data, bin_div):
     particle_events = []
     other_packet_count = 0
     integration_length = 0
