@@ -53,22 +53,11 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
     chan = -1
     trigchan = -1
     flags = 0  # Setting to 1 to match the pileup flag for the grif16, it means nothing here
-    # event_counter_slash_timestamp = -1
     myparticle_events = []
-#    print(bank_data)
-#    f = open('word_output.txt', 'a')
-#    hit = open('hit_output.txt', 'a')
-    for current_word in range(1, len(bank_data)):
-#        if current_word == 1:
-            #f.write(str(bank_data[current_word]))
-            #print(str(bank_data[current_word]), end="")
 
-#        else:
-            #print("," + str(bank_data[current_word]), end="")
-            #f.write("," + str(bank_data[current_word]))
+    for current_word in range(0, len(bank_data)):
         data_sig = (bank_data[current_word] >> 30) & 0x3
         sub_header = (bank_data[current_word] >> 28) & 0xF
-        #sub_header = (bank_data[current_word] >> 28) & 0x3
         if bank_data[current_word] == 4294967295:  # This is all 1's and seems to just be a filler event so disgard
             continue
         if bank_data[current_word] == 0:
@@ -77,32 +66,29 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
             low_ts = (bank_data[current_word] >> 0) & 0x3FFFFFFF
             continue
         if sub_header == 1:
+            trigchan = 0
             flags = (bank_data[current_word] >> 22) & 0x3
             trigchan = (bank_data[current_word] >> 16) & 0x3F
             adc_value = 0
-
             if trigchan < MAX_MDPP16_CHANNELS: # Less than 16
                 # Note that I'm rounding the pulse_height.  These come in as decimals but I don't see a point in keeping it that way
                 # I will probably add a command line switch for this or maybe not.. best laid plans and what not.. -jonr
                 chan = (bank_data[current_word] >> 16) & 0x1F
                 adc_value = ((bank_data[current_word] >> 0) & 0xFFFF)
+
+                if (flags == 0) and (adc_value < ADC_CHAN) and (chan < MAX_MDPP16_CHANNELS) and (chan > -1):
+                    new_pulse_height = int(adc_value/bin_div)
+                    myparticle_events.append({"chan": (chan + MDPP16_CHAN_PREFIX), "pulse_height": new_pulse_height})
+                #    print(str(trigchan) + "," + str(chan) + "," + str(flags) + "," + str(new_pulse_height))
+                    event_count = event_count + 1
             else:
                 continue
 
         elif sub_header == 2:
             high_ts = (bank_data[current_word] >> 0) & 0xFFFF
             continue
-        if (flags == 0) and (adc_value < ADC_CHAN) and (chan < MAX_MDPP16_CHANNELS) and (chan > -1):
-            new_pulse_height = int(adc_value/bin_div)
-            myparticle_events.append({"chan": (chan + MDPP16_CHAN_PREFIX), "pulse_height": new_pulse_height})
-            #hit.write(str(trigchan) + "," + str(chan) + "," + str(flags) + "," + str(new_pulse_height) + '\n')
-            event_count = event_count + 1
 
-        if show_all_data is True:
-            print("   ----Event----")
-            print("     Sig : %i,  Sub: %i, Channel : %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, sub_header, chan, adc_value, tdc_value))
     # Set values to object to return, remember we are using a prefix of +100 for MDPP16 channel addressing
-    #f.write('\n')
     if (low_ts != -1) and (high_ts != -1):
         timestamp = low_ts + (high_ts*2**30)
 
