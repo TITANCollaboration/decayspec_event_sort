@@ -47,8 +47,8 @@ class hist_gen:
         #self.overlay_multipliers = [1e4, 1e5, 1e6, 1e7]  # Multiplies to apply to zoomed region
         self.overlay_chan = 99  # channel in hist file for overlay (small zoomed graph)
         self.chan = 99  # channel used for primary graph and for saving to hist format
-        self.fit_peak_xmin = 1155
-        self.fit_peak_xmax = 1170
+        self.fit_peak_xmin = 330
+        self.fit_peak_xmax = 380
         # --zoom_xmin 1140 --zoom_xmax 1180
         self.fit_peak = False
         self.smear_overlay = False
@@ -153,7 +153,7 @@ class hist_gen:
         else:
             if self.smearing is True:
                 my_hist = self.gaussian_smearing(my_hist)
-            my_axis.step(energy_axis, my_hist)#, where='mid')
+            my_axis.step(energy_axis, my_hist, where='mid')
 
     def create_chan_basic_histograms(self, my_hist, energy_axis):
         # Set up all graphing parameters and call graph_with_overlays to actually do the graphing
@@ -166,9 +166,9 @@ class hist_gen:
             plt.yscale("log")
 
         if self.fit_peak is True:
-        #    self.min_pulse_height = self.fit_peak_xmin
-        #    self.max_pulse_height = self.fit_peak_xmax
-            #true_peak_center, best_fit = self.peak_fitting(my_hist, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
+            self.min_pulse_height = self.fit_peak_xmin
+            self.max_pulse_height = self.fit_peak_xmax
+            true_peak_center, best_fit = self.peak_fitting(my_hist, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
             print("Fix me... sometime..")
 
         self.graph_with_overlays(self.axes, energy_axis, my_hist, False)
@@ -251,7 +251,6 @@ class hist_gen:
         energy_axis = np.linspace(0, len(mydata_df['summed_hist'].values), len(mydata_df['summed_hist'].values), dtype=int)
 #        my_hist = np.concatenate(([0], mydata_df['summed_hist'])) # If this is coming from GEANT4 there is no 0 bin
         my_hist = mydata_df['summed_hist']  # if it's coming from MIDAS there is a 0 bin
-        print("myhist:", my_hist)
 
         return energy_axis, my_hist
 
