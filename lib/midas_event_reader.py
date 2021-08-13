@@ -92,7 +92,7 @@ class midas_events:
         if self.sort_type == 'histo':
             from lib.energy_calibration import energy_calibration
             energy_cal = energy_calibration(self.cal_file)
-            particle_event_list = energy_cal.calibrate_histograms(particle_event_list)
+            #particle_event_list = energy_cal.calibrate_histograms(particle_event_list)
             self.histo_dict = particle_event_list
         if self.write_events_to_file is True:
             myoutput.write_events(particle_event_list)
@@ -132,11 +132,16 @@ class midas_events:
         events = event_handler(self.sort_type, self.EVENT_LENGTH, self.EVENT_EXTRA_GAP, self.MAX_HITS_PER_EVENT, self.calibrate, self.cal_file, ppg_data_file=self.ppg_data_file, ppg_value_range=self.ppg_value_range)
         num = 0  # This is just so we don't delete the MidasFile memory which causes a seg fault with pypy, it's weird, probably Midas memory deallocation error
         my_midas_file = {}
+        write_events_to_file_init_value = self.write_events_to_file
+        self.write_events_to_file = False  # Temporarily turn this off until on the last file
+        total_num_of_files = len(self.midas_files)
         for my_file in self.midas_files:
+            num = num + 1
+            if num == total_num_of_files:
+                self.write_events_to_file = write_events_to_file_init_value
             my_midas_file[num] = file_reader.MidasFile(my_file)
             print(my_file)
             self.read_midas_events(my_midas_file[num], myoutput, events)
-            num = num + 1
         return
 
     def read_midas_events(self, my_midas_file, myoutput, events):

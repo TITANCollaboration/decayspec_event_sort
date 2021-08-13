@@ -6,7 +6,7 @@ from lib.input_handler import input_handler
 from pprint import pprint
 
 class event_handler:
-    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file, ppg_data_file=None, ppg_value_range=None):
+    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file, ppg_data_file=None, ppg_value_range=None, max_pulse_height=2**16, min_bin=0, max_bin=2**16, num_of_bins=2**16):
         self.sort_type = sort_type
         self.event_length = event_length
         self.event_extra_gap = event_extra_gap
@@ -15,8 +15,11 @@ class event_handler:
         self.ppg_data_file = ppg_data_file
         self.ppg_value_range = ppg_value_range
 
+        self.min_bin = min_bin
+        self.max_bin = max_bin
+        self.num_of_bins = num_of_bins
         self.total_count = 0
-        self.max_pulse_height = 8192 
+        self.max_pulse_height = max_pulse_height
         if sort_type == "histo":
             self.histo_data_dict = {}
         if self.calibrate:
@@ -98,6 +101,32 @@ class event_handler:
         return
 
     def histo_sorter(self, particle_hit_list):
+        # Testing if it's better to make use of np.histogram for better bining
+        ph_list_buffer = {}
+        if self.calibrate:
+            particle_hit_list = self.energy_calibration.calibrate_list(particle_hit_list)
+        if self.ppg_data_file is not None:
+            self.time_correlate_ppg_data(particle_hit_list)
+        for particle_hit in particle_hit_list:
+            if particle_hit['chan'] not in ph_list_buffer.keys():
+                ph_list_buffer.update({particle_hit['chan']: []})
+                #self.histo_data_dict.update({particle_hit['chan']: []})
+            if particle_hit['pulse_height'] < self.max_pulse_height:
+                if (self.ppg_value_range is not None):
+                    if (particle_hit['ppg_value'] >= self.ppg_value_range[0]) and (particle_hit['ppg_value'] <= self.ppg_value_range[1]):
+                        print("This has not been extensively tested!")
+                        ph_list_buffer[particle_hit['chan']].append(particle_hit['pulse_height'])
+                else:
+                    ph_list_buffer[particle_hit['chan']].append(particle_hit['pulse_height'])
+        # Now do np.histogram on each channel and sum the histograms I think
+        for buffer_chan_key in ph_list_buffer.keys():
+            if buffer_chan_key not in self.histo_data_dict.keys():
+                self.histo_data_dict[buffer_chan_key] = np.zeros(1) # Create an array of a single 0 if no data exists yet for the channel
+
+            self.histo_data_dict[buffer_chan_key] = np.histogram(ph_list_buffer[buffer_chan_key], bins=self.num_of_bins, range=(self.min_bin, self.max_bin))[0] + self.histo_data_dict[buffer_chan_key]
+        return
+
+    """def histo_sorter(self, particle_hit_list):
         # This one is weird and has issues running mutliprocessor due to the size of the dicts + arrays
         if self.calibrate:
             # print("Before:", len(particle_hit_list))
@@ -114,7 +143,7 @@ class event_handler:
                         self.histo_data_dict[particle_hit['chan']][particle_hit['pulse_height']] = self.histo_data_dict[particle_hit['chan']][particle_hit['pulse_height']] + 1
                 else:
                     self.histo_data_dict[particle_hit['chan']][particle_hit['pulse_height']] = self.histo_data_dict[particle_hit['chan']][particle_hit['pulse_height']] + 1
-        return 0
+        return 0"""
 
     def raw_sorter(self, event_queue, particle_hit_list):
         # This is mostly a dummy function
@@ -139,9 +168,10 @@ class event_handler:
                                             'chan': [particle_hit['chan']],
                                             'timestamp': particle_hit['timestamp'],
                                             'hit_count': 1})
-            # check if the timestamp is in the range of a temporal event and that we aren't seeing the event from the same detector, this might get weird and maybe we should care
-            # as it could have an impact on events after it..
-            elif ((particle_hit['timestamp'] - particle_event_list[-1]['timestamp']) < (self.event_length + self.event_extra_gap)): # and (particle_hit['chan'] not in particle_event_list[-1]['chan']):
+                """ check if the timestamp is in the range of a temporal event and that we aren't seeing the
+                event from the same detector, this might get weird and maybe we should care as it could have
+                an impact on events after it.. """
+            elif ((particle_hit['timestamp'] - particle_event_list[-1]['timestamp']) < (self.event_length + self.event_extra_gap)):  # and (particle_hit['chan'] not in particle_event_list[-1]['chan']):
                 event_hit_count = event_hit_count + 1
                 particle_event_list[-1]['pulse_height'].append(particle_hit['pulse_height'])
                 particle_event_list[-1]['chan'].append(particle_hit['chan'])

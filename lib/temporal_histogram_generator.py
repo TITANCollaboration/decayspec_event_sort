@@ -13,7 +13,7 @@ import json
 class temporal_histogram_generator:
     def __init__(self, redis_hostname="localhost", redis_port="6379", redis_queue='mdpp16:queue', channel=0,
                  pulse_height_bin_min=0, pulse_height_bin_max=2048, egun_voltage_min=2000, egun_voltage_max=2700,
-                 egun_voltage_step_size=1.3, heatmap_type="voltage_v_time", max_time_per_cycle_ms=1000, time_per_cycle_step_size_ms=10,
+                 egun_voltage_step_size=1.3, heatmap_type="voltage_v_time", max_time_per_cycle_ms=1000, time_per_cycle_step_size_ms=1000,
                  max_time=60*1000):
         self.tdc_current = 0
         self.current_time_step = 0
@@ -78,14 +78,10 @@ class temporal_histogram_generator:
     def process_energy_vs_time_data(self, frame_value):  # frame value is just for the animation stuff, we don't care about it
         queue_contents = self.drain_queue()  # Get all available entries from queue
         for queue_entry in queue_contents:
-            #print(queue_entry['hist'][self.channel][self.pulse_height_bin_min:self.pulse_height_bin_max])
+
             self.heatmap_2darray = np.delete(self.heatmap_2darray, 0, 0)  # Delete top row of 2d array, essentially pop oldest value off
             self.heatmap_2darray = np.append(self.heatmap_2darray,
                                          [queue_entry['hist'][self.channel][self.pulse_height_bin_min:self.pulse_height_bin_max]], axis=0)
-#    np.append(A, [[7, 8, 9]], axis=0)
-            #sum_hits_in_region = np.sum(np.array(queue_entry['hist'][self.channel])[self.pulse_height_bin_min:self.pulse_height_bin_max])
-            #print("Sum of hits", sum_hits_in_region)
-            #print("channel:", self.channel)
         self.energy_vs_time_heatmap()
         return
 

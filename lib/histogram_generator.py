@@ -82,7 +82,8 @@ class hist_gen:
                                           self.fit_peak_xmax,
                                           self.fit_peak_xmax-self.fit_peak_xmin,
                                           dtype=int)
-            my_axes.plot(fit_energy_axis, best_fit)
+            if my_axes is not None:
+                my_axes.plot(fit_energy_axis, best_fit)
             return true_peak_center, best_fit
         return 0, 0
 
