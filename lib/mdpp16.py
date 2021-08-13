@@ -43,6 +43,7 @@ def read_footer(word_data):
 def read_words_for_events(bank_data, show_event=True, bin_div=1):
     #  I think I'm going to read these things in pairs as that is what they are.. besides the footer.  I will check
     #  that in the read_all_bank_events
+    timestamp = -1
     show_all_data = False
     data_sig = 0
     event_count = 0
@@ -77,9 +78,11 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
                 adc_value = ((bank_data[current_word] >> 0) & 0xFFFF)
 
                 if (flags == 0) and (adc_value < ADC_CHAN) and (chan < MAX_MDPP16_CHANNELS) and (chan > -1):
-                    new_pulse_height = int(adc_value/bin_div)
+#                    if adc_value > 16315 and adc_value < 16317:
+#                        print("\n",bank_data)
+                    new_pulse_height = round(adc_value/bin_div)  # Not sure if round or int is best here.., doesn't matter unless bin_div != 1
                     myparticle_events.append({"chan": (chan + MDPP16_CHAN_PREFIX), "pulse_height": new_pulse_height})
-                #    print(str(trigchan) + "," + str(chan) + "," + str(flags) + "," + str(new_pulse_height))
+                    #print(str(trigchan) + "," + str(chan) + "," + str(flags) + "," + str(new_pulse_height))
                     event_count = event_count + 1
             else:
                 continue
@@ -95,8 +98,10 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
     if show_event is True:
         print("   ----Event----")
         print("     Sig : %i,  Sub: %i, Channel : %i, - trigChan: %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, sub_header, chan, trigchan, adc_value, tdc_value))
-    return myparticle_events, timestamp, event_count
-
+    if timestamp != -1:
+        return myparticle_events, timestamp, event_count
+    else:
+        return [[], -1, 0]
 
 def read_all_bank_events(bank_data, bin_div):
     particle_events_list = []
@@ -105,5 +110,6 @@ def read_all_bank_events(bank_data, bin_div):
     new_particle_events, timestamp, event_count = read_words_for_events(bank_data, False, bin_div)
 
     for event in new_particle_events:
+        #if timestamp != -1:
         particle_events_list.append({'timestamp': timestamp, 'chan': event['chan'], 'pulse_height': event['pulse_height'], 'flags': flags})
     return particle_events_list

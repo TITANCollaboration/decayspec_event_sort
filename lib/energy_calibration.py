@@ -50,6 +50,7 @@ class energy_calibration:
         return
 
     def calibrate_histograms(self, hit_list_dict):
+        # Might not want to do this, advised that it's better to calibrate every hit first
         self.read_in_calibration_file()
         nbins_array = np.linspace(1, self.bin_max, self.bin_max)
 
@@ -64,6 +65,7 @@ class energy_calibration:
                 hit_list_dict[my_chan] = new_hist
         return hit_list_dict
 # {0: array([0, 0, 0, ..., 0, 0, 0]), 10: array([0, 0, 0, ..., 0, 0, 3]), 11: array([3, 0, 0, ..., 0, 0, 0]),
+
     def calibrate_hit(self, hit):
         # Performs a polynomial calibration onto an individual pulse height
         #print("Hi: ", np.polyval(self.cal_dict[hit['chan']], hit['pulse_height']))
