@@ -2,3 +2,8 @@ __pycache__/*
 lib/__pycache__/*
 *.csv
 *.mid
+*.hist
+*.cal
+.DS_Store
+*.png
+*.txt

@@ -14,7 +14,7 @@ from pprint import pprint
 from lmfit.models import ExpressionModel
 
 class hist_gen:
-    def __init__(self, input_filename, save_all=False, overlay_files=None, max_pulse_height=8192, min_pulse_height=0, title=None, xlabel=None, ylabel=None, energy_labels=None, y_axis_min=0, y_axis_max=None, zoom=False, zoom_xmin=None, zoom_xmax=None, zoom_ymin=None, zoom_ymax=None, ylog_zoom=None, overlay_multipliers=None, output_filename=None, ylog=False, bin_number=None):
+    def __init__(self, input_filename=None, save_all=False, overlay_files=None, max_pulse_height=8192, min_pulse_height=0, title=None, xlabel=None, ylabel=None, energy_labels=None, y_axis_min=0, y_axis_max=None, zoom=False, zoom_xmin=None, zoom_xmax=None, zoom_ymin=None, zoom_ymax=None, ylog_zoom=None, overlay_multipliers=None, output_filename=None, ylog=False, bin_number=None):
         self.flags = 1  # if there is a flag that needs to be used for the root file raw data
         self.bin_number = bin_number
         self.min_pulse_height = min_pulse_height  # min x value
@@ -47,15 +47,16 @@ class hist_gen:
         #self.overlay_multipliers = [1e4, 1e5, 1e6, 1e7]  # Multiplies to apply to zoomed region
         self.overlay_chan = 99  # channel in hist file for overlay (small zoomed graph)
         self.chan = 99  # channel used for primary graph and for saving to hist format
-        self.fit_peak_xmin = 330
-        self.fit_peak_xmax = 380
+        self.fit_peak_xmin = 6400
+        self.fit_peak_xmax = 7000
         # --zoom_xmin 1140 --zoom_xmax 1180
-        self.fit_peak = False
+        self.fit_peak = True
         self.smear_overlay = False
         self.output_filename = output_filename
         self.gothere = 0
 
     def peak_fitting(self, my_hist, my_axes, min_fit_peak, max_fit_peak):
+        print(my_hist, "min", min_fit_peak, "max", max_fit_peak)
         #print("Min fit peak", min_fit_peak, "Max fit peak", max_fit_peak)
         # First we find the best peak in the area and then we fit it with a gaussian
         peak_indexes, peak_properties = scipy.signal.find_peaks(my_hist[min_fit_peak:max_fit_peak], prominence=1000, width=1)  # Find all the major peaks

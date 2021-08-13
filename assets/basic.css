@@ -1,0 +1,18 @@
+body { background-color: #4C4C4C;
+       color: white;
+       font-size: 20px;
+       margin: 0; }
+
+.Select-control {
+    background-color: 'darkgrey' !important;
+       }
+.VirtualizedSelectFocusedOption {
+    background-color: grey;
+    font-size: 18px;
+    color: white;
+}
+
+.VirtualizedSelectOption {
+    background-color: 'Black';
+    color: black;
+}
