@@ -14,12 +14,41 @@ from lib.histogram_generator import hist_gen
 #from pathlib import Path
 
 app = dash.Dash(__name__)
+app.config.suppress_callback_exceptions = True
+
+tabs_styles = {
+    'height': '30px'
+}
+tab_style = {
+    'color': 'grey',
+    'borderBottom': '2px solid #d6d6d6',
+    'padding': '2px',
+    'fontWeight': 'bold'
+}
+
+tab_selected_style = {
+    'borderTop': '1px solid #4C4C4C',
+    'borderBottom': '1px solid #4C4C4C',
+    'backgroundColor': '#119DFF',
+    'color': 'white',
+    'padding': '2px'
+}
+
+offline_tab_content = html.Div([
+                        html.Label(['Select Histogram ',
+                            dcc.Dropdown(
+                                id='hist_file_selection',
+                                style={'width': '40vH', 'height': '40px'},
+                                multi=False,
+                            )
+                        ])
+                        ])
+online_tab_content = html.Div()
+
 app.title = 'HistPlot'
 
 app.layout = html.Div([
-    #html.Title("HistPlot"),
     html.Div([
-    #    html.Title("HistPlot"),
         html.H4(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
         html.H2('Test Hist - Project Elrond', style={
             'textAlign': 'center'})
@@ -44,15 +73,15 @@ app.layout = html.Div([
         ])
     ]),
     html.Hr(),
+    html.Div([dcc.Tabs(id='mode-tabs', value='offline-analysis', children=[
+        dcc.Tab(label='Offline Analysis', value='offline-analysis', style=tab_style, selected_style=tab_selected_style),
+        dcc.Tab(label='Online Analysis', value='online-analysis', style=tab_style, selected_style=tab_selected_style),
+        ],
+        style=tabs_styles)]), #,, html.Div(id='tabs-content-inline')]),
     html.Div([
-        html.Div([
-            html.Label(['Select Histogram ',
-                dcc.Dropdown(
-                    id='hist_file_selection',
-                    style={'width': '40vH', 'height': '40px'},
-                    multi=False)
-            ])
-        ]),
+        dcc.Store(id='tab-mode-selection'),
+        html.Div(id='tabs-content-inline'),
+
         html.Label(['GRIF16 Channel Select ',
             dcc.Dropdown(
                 id='grif16_chan_dropdown',
@@ -75,8 +104,9 @@ app.layout = html.Div([
         ])
     ], style=dict(display='flex')),
     html.Hr(),
+    html.Div(id='call-static-grapher'),
     html.Div([dcc.Graph(id='static-hist'),
-        dcc.Store(id='testme'),
+        dcc.Store(id='hist_filename'),
         dcc.Store(id='peak_fit_first_point'),
         html.Button('Fit Peak', id='fit-peak-button', n_clicks=0)]),
     html.Div([
@@ -105,18 +135,12 @@ app.layout = html.Div([
 
 
 def create_static_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax):
-    #mydata_df = pd.read_csv(hist_filename, sep='|', engine='c')
-    # MOVE THIS LINE ELSEWHERE.  Want to just pass a histogram here so that this function and part of the one below can be reused for realtime/online portion
-
-
     # !! Need to check that all the channels exist as columns in the DF and remove those that don't
     for channel in channels_to_display:
         if channel not in mydata_df.columns:
             channels_to_display.remove(channel)
 
     fig_hist_static = px.line(mydata_df[channels_to_display][xmin:xmax],
-                            #  x='Mine',
-                #              y="101",
                               line_shape='hv',
                               render_mode='webgl',
                               height=800,
@@ -137,8 +161,21 @@ def create_static_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xm
 
     return fig_hist_static
 
+
+@app.callback(Output('tabs-content-inline', 'children'),
+              Output('tab-mode-selection', 'data'),
+              Input('mode-tabs', 'value'),
+              State('tab-mode-selection', 'data')
+              )
+def render_tab_content(tab_selection, tab_mode):
+    tab_mode = tab_selection
+    if tab_selection == 'offline-analysis':
+        return offline_tab_content, tab_mode
+    elif tab_selection == 'online-analysis':
+        return online_tab_content, tab_mode
+
+
 @app.callback(
-#    Output('testme', 'data'),
     Output('xmin', 'value'),
     Output('xmax', 'value'),
     Input('static-hist', 'relayoutData'))
@@ -157,11 +194,27 @@ def zoom_event(relayoutData):
             return int(relayoutData['xaxis.range[0]']), int(relayoutData['xaxis.range[1]'])
     return 0, 20000
 
+@app.callback(
+    Output('hist_filename', 'data'),
+    Output('call-static-grapher', 'children'),
+    Input('hist_file_selection', 'value'),
+    State('hist_filename', 'data'),
+)
+def set_static_hist_filename(hist_file_selection, stored_hist_filename):
+    call_static_grapher = False
+    print("Hist selection", hist_file_selection)
+    print("Stored value", stored_hist_filename)
+    stored_hist_filename = hist_file_selection
+    if stored_hist_filename is not None:
+        call_static_grapher = True
+
+    return stored_hist_filename, call_static_grapher
 
 @app.callback(
     Output('static-hist', 'figure'),
     Output('peak_fit_first_point', 'data'),
-    Input('hist_file_selection', 'value'),
+    #Output('hist_filename', 'data'),
+    Input('call-static-grapher', 'children'),
     Input('yaxis-type', 'value'),
     Input("xmin", "value"),
     Input("xmax", "value"),
@@ -169,13 +222,18 @@ def zoom_event(relayoutData):
     Input("mdpp16_chan_dropdown", "value"),
     Input('fit-peak-button', 'n_clicks'),
     Input('static-hist', 'clickData'),
-    State('peak_fit_first_point', 'data')
+    State('peak_fit_first_point', 'data'),
+    State('hist_filename', 'data'),
+    State('tab-mode-selection', 'data')
+
     )
-def process_static_hist(hist_file_selection, yaxis_type, xmin, xmax, grif16_chan_dropdown, mdpp16_chan_dropdown, fit_peak_button, click_data, stored_data):
+def process_static_hist(call_static_grapher, yaxis_type, xmin, xmax, grif16_chan_dropdown, mdpp16_chan_dropdown, fit_peak_button, click_data, stored_data, stored_hist_filename, tab_mode_selection):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]  # determines what property changed, in this case which button was pushed
-    hist_file_selection="./hists/run770.hist"
+    print("Change id", changed_id)
+    print("Tab mode:", tab_mode_selection)
+    print("Stored hist filename:", stored_hist_filename)
+    hist_file_selection = stored_hist_filename #"./hists/run770.hist"
     mdpp16_chan_dropdown = [0]
-    #print("Relayout", relayoutData)
     channels_to_display = []
     if hist_file_selection is None:
         raise dash.exceptions.PreventUpdate
@@ -213,7 +271,6 @@ def process_static_hist(hist_file_selection, yaxis_type, xmin, xmax, grif16_chan
             fig_hist_static.update_layout(hovermode='x unified')
             fig_hist_static.update_layout(clickmode='event+select')
 
-        print("Got some data!", click_data['points'][0]['x'])
         fig_hist_static.add_vline(x=clicked_x_value, line_width=3, line_dash="dash", line_color="green")
 
     if changed_id == 'fit-peak-button.n_clicks':
@@ -221,13 +278,14 @@ def process_static_hist(hist_file_selection, yaxis_type, xmin, xmax, grif16_chan
         fig_hist_static.update_layout(hovermode='x unified')
         fig_hist_static.update_layout(clickmode='event+select')
 
-    return fig_hist_static, stored_data
+    return fig_hist_static, stored_data #, stored_hist_filename
 
 @app.callback(Output('output-data-upload', 'children'),
               Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
               State('upload-data', 'last_modified'))
 def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
+    # Write contents of uploaded histogram to disk after properly decoding from base64
     if list_of_contents is not None:
         print(list_of_names)
         for hist_filename, contents in zip(list_of_names, list_of_contents):
@@ -238,19 +296,12 @@ def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
             output_file = open(output_filename, 'w', encoding="utf-8")
             output_file.write(decoded.decode("utf-8"))
             output_file.close()
-        #    print(decoded)
-#            print(io.StringIO(decoded.decode('utf-8')))
     return
 
-options = [
-    {"label": "New York City", "value": "NYC"},
-    {"label": "Montreal", "value": "MTL"},
-    {"label": "San Francisco", "value": "SF"},
-]
 
 @app.callback(
     Output("hist_file_selection", "options"),
-    [Input("hist_file_selection", "search_value")],
+    Input("hist_file_selection", "search_value")
 )
 def update_options(search_value):
     file_list_options = []
