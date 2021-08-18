@@ -1,15 +1,16 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State, ALL, MATCH
+from dash.dependencies import Input, Output, State, ALL  # , MATCH
 
 import plotly.express as px
 import pandas as pd
-import numpy as np
+# import numpy as np
 import glob
 import base64
 import datetime
 from lib.histogram_generator import hist_gen
+from lib.online_analyzer_requests import online_analyzer_requests
 
 #from pathlib import Path
 
@@ -33,6 +34,13 @@ tab_selected_style = {
     'color': 'white',
     'padding': '2px'
 }
+
+nudat_form = html.Div([html.Form([
+                                html.Label(['NuDat Lookup ',
+                                    dcc.Input(name='nuc', type="text", style={'width':'60px'}, minLength=2, maxLength=5, placeholder="ex. sb129")]),
+                                html.Button('Submit', type='submit', value='go')],
+                                action='https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp',
+                                target="_blank", method='post')])
 
 channel_selections_from_hist = html.Div()
 
@@ -87,6 +95,7 @@ app.layout = html.Div([
         html.H2('Test Hist - Project Elrond', style={
             'textAlign': 'center'})
     ]),
+    nudat_form,
     html.Div([
         html.Label(['Y-Axis ',
             dcc.RadioItems(
@@ -215,12 +224,10 @@ def zoom_event(relayoutData):
     State('hist_filename', 'data'),
 )
 def set_static_hist_filename(hist_file_selection, hist_available_channel_dropdown, stored_hist_filename):
-    #call_static_grapher = False
     print("Hist selection", hist_file_selection)
     print("Stored value", stored_hist_filename)
     stored_hist_filename = hist_file_selection
     if stored_hist_filename is not None:
-        #call_static_grapher = True
         mydata_df = pd.read_csv(hist_file_selection, sep='|', nrows=0, engine='c')
         hist_available_channel_dropdown.append(html.Div([html.Label(['Available Channels ',
                                             dcc.Dropdown(
@@ -229,10 +236,6 @@ def set_static_hist_filename(hist_file_selection, hist_available_channel_dropdow
                                                         style={'width': '40vH', 'height': '40px'},
                                                         multi=True)
                                                         ])]))
-        #for channel in mydata_df.columns:
-        #    available_channels.append({"label": channel, "value": channel})
-
-
     return stored_hist_filename, hist_available_channel_dropdown
 
 @app.callback(
@@ -255,15 +258,12 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
 
     print("Triggerd:", triggered)
     print("Tab mode:", tab_mode_selection)
-    if tab_mode_selection == 'online-analysis':
-        update_interval = 5*1000
-    else:
-        update_interval = 9999999999
 
+    update_interval = 9999999999  # Set this to a long period of time assuming we're in offline mode, change it only when we are definitly in online mode with channels selected.
 
     print(hist_available_channel_list)
-    if not hist_available_channel_list:
-        raise dash.exceptions.PreventUpdate
+    #if not hist_available_channel_list:
+    #    raise dash.exceptions.PreventUpdate
 
     channels_to_display = []
     for channels in hist_available_channel_list:
@@ -284,15 +284,16 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
             print("Offline Graphing mode...")
             mydata_df = pd.read_csv(hist_file_selection, sep='|', engine='c')
         else:
+            #  We're in online mode!! Let's see if we can grab remote data and display it
             print("Online Graphing mode...")
-            d = {'0': [1, 2, 4, 5, 6]}
-            mydata_df = pd.DataFrame(data=d)
-        print("Xmin:", xmin, "Xmax:", xmax)
+            update_interval = 5*1000
+            myrequests = online_analyzer_requests()
+            mydata_df = myrequests.fetch_remote_hist(channels_to_display)
+
         fig_hist_static = create_static_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax)
+        fig_hist_static.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
     else:
-        # PreventUpdate prevents ALL outputs updating.  Don't throw errors before channels and files selected
-        raise dash.exceptions.PreventUpdate
-    fig_hist_static.update_layout(clickmode="none")
+        fig_hist_static = {}
 
     if click_data is not None:
         clicked_x_value = click_data['points'][0]['x']
