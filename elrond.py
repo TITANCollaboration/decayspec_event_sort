@@ -49,7 +49,7 @@ channel_selections_from_daqs = html.Div([
                             dcc.Dropdown(
                                 id={'type': 'chan_dropdown', 'index': 'n_clicks'},
                                 options=[
-                                        {"label": chan, "value": str(chan)}
+                                        {"label": chan, "value": 'grif16_' + str(chan)}
                                         for chan in range(0, 16)
                                         ],
                                 style={'width': '40vH', 'height': '40px'},
@@ -60,29 +60,26 @@ channel_selections_from_daqs = html.Div([
                             dcc.Dropdown(
                                 id={'type': 'chan_dropdown', 'index': 'n_clicks'},
                                 options=[
-                                        {"label": chan, "value": str(chan)}
-                                        for chan in range(100, 116)
+                                        {"label": chan, "value": 'mdpp16_' + str(chan)}
+                                        for chan in range(0, 16)
                                         ],
                                 style={'width': '40vH', 'height': '40px'},
                                 multi=True)
                         ])
                         ], style=dict(display='flex'))
 
-offline_tab_content = html.Div([
-                        html.Label(['Select Histogram ',
-                            dcc.Dropdown(
-                                id='hist_file_selection',
-                                style={'width': '40vH', 'height': '40px'},
-                                multi=False,
-                            )
-                        ]),
-                    #    html.Label(['Available Channels ',
-                    #        dcc.Dropdown(
-                    #            id='hist_available_channel_list',
-                    #            style={'width': '40vH', 'height': '40px'},
-                    #            multi=True
-                    #            )])
-                            html.Div(id='hist_available_channel_dropdown', children=[])], style=dict(display='flex'))
+offline_tab_content = html.Div([html.Button(
+                                    'Plus', id='add-hist', n_clicks=0,
+                                    style={'display': 'inline-block'}
+                                    ),
+                                html.Label(['Select Histogram ',
+                                    dcc.Dropdown(
+                                        id='hist_file_selection',
+                                        style={'width': '40vH', 'height': '40px'},
+                                        multi=False,
+                                    )
+                                ]),
+                                html.Div(id='hist_available_channel_dropdown', children=[])], style=dict(display='flex'))
 
 online_tab_content = html.Div([
                         channel_selections_from_daqs])
@@ -92,7 +89,7 @@ app.title = 'HistPlot'
 app.layout = html.Div([
     html.Div([
         html.H4(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
-        html.H2('Test Hist - Project Elrond', style={
+        html.H2('Project Elrond', style={
             'textAlign': 'center'})
     ]),
     nudat_form,
@@ -159,30 +156,6 @@ app.layout = html.Div([
 ])
 
 
-def create_static_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax):
-    # !! Need to check that all the channels exist as columns in the DF and remove those that don't
-    for channel in channels_to_display:
-        if channel not in mydata_df.columns:
-            channels_to_display.remove(channel)
-
-    fig_hist_static = px.line(mydata_df[channels_to_display][xmin:xmax],
-                              line_shape='hv',
-                              render_mode='webgl',
-                              height=800,
-                              log_y=True,
-                              labels={'index': "Pulse Height", 'value': "Counts"})
-    fig_hist_static.update_layout(
-        showlegend=False,
-        plot_bgcolor="lightgrey",
-        xaxis_showgrid=False, yaxis_showgrid=False
-    )
-    fig_hist_static.update_layout(plot_bgcolor='rgba(0, 0, 0, 0)',
-                                  paper_bgcolor='rgba(0, 0, 0, 0)',
-                                  font_color='white')
-    fig_hist_static.update_yaxes(type='linear' if yaxis_type == 'Linear' else 'log')
-    return fig_hist_static
-
-
 @app.callback(Output('tabs-content-inline', 'children'),
               Output('tab-mode-selection', 'data'),
               Input('mode-tabs', 'value'),
@@ -242,6 +215,7 @@ def set_static_hist_filename(hist_file_selection, hist_available_channel_dropdow
     Output('hist_graph_display', 'figure'),
     Output('peak_fit_first_point', 'data'),
     Output('interval-component', 'interval'),
+    Output('fit-peak-button', 'n_clicks'),
     Input('interval-component', 'n_intervals'),
     Input('yaxis-type', 'value'),
     Input("xmin", "value"),
@@ -255,26 +229,18 @@ def set_static_hist_filename(hist_file_selection, hist_available_channel_dropdow
     )
 def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_channel_list, fit_peak_button, click_data, stored_data, stored_hist_filename, tab_mode_selection):
     triggered = [t["prop_id"] for t in dash.callback_context.triggered]
-
+    print("Fit peak button:", fit_peak_button)
     print("Triggerd:", triggered)
     print("Tab mode:", tab_mode_selection)
-
     update_interval = 9999999999  # Set this to a long period of time assuming we're in offline mode, change it only when we are definitly in online mode with channels selected.
-
-    print(hist_available_channel_list)
-    #if not hist_available_channel_list:
-    #    raise dash.exceptions.PreventUpdate
 
     channels_to_display = []
     for channels in hist_available_channel_list:
         if channels is not None:
             channels_to_display.extend(channels)
 
-    print("Available channels selected", channels_to_display)
-
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]  # determines what property changed, in this case which button was pushed
     print("Change id", changed_id)
-    print("Stored hist filename:", stored_hist_filename)
     hist_file_selection = stored_hist_filename #"./hists/run770.hist"
 
     if len(channels_to_display) > 0:
@@ -284,40 +250,20 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
             print("Offline Graphing mode...")
             mydata_df = pd.read_csv(hist_file_selection, sep='|', engine='c')
         else:
-            #  We're in online mode!! Let's see if we can grab remote data and display it
-            print("Online Graphing mode...")
+            mydata_df, channels_to_display, status = remote_online_df(channels_to_display, "Pulse_Height")
             update_interval = 5*1000
-            myrequests = online_analyzer_requests()
-            mydata_df = myrequests.fetch_remote_hist(channels_to_display)
 
-        fig_hist_static = create_static_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax)
-        fig_hist_static.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
+        fig_hist = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax)
+        fig_hist.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
+        fig_hist.update_layout(hovermode='x')  # This gives a little box with info when hovering over data
+
     else:
-        fig_hist_static = {}
+        fig_hist = {}
 
-    if click_data is not None:
-        clicked_x_value = click_data['points'][0]['x']
-        if (stored_data is not None) and ('fit_first_index' in stored_data.keys()):
-            fig_hist_static.add_vline(x=stored_data['fit_first_index'], line_width=3, line_dash="dash", line_color="green")
-            print("Point 1", stored_data['fit_first_index'], "Point 2", clicked_x_value)
-            hist_gen_tools = hist_gen()
-            print("Channel to display", channels_to_display[0])
-            # We're just going to choose to use the first selected channel for now, change later if needed
-            hist_gen_tools.peak_fitting(mydata_df[channels_to_display[0]], None, stored_data['fit_first_index'], clicked_x_value)
-            stored_data.pop('fit_first_index', None)  # Remove 1st point dict key when done
-        else:
-            stored_data = {'fit_first_index': clicked_x_value}
-            fig_hist_static.update_layout(hovermode='x unified')
-            fig_hist_static.update_layout(clickmode='event+select')
+    if fit_peak_button == 1:
+        stored_data, fig_hist, update_interval, fit_peak_button= fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channels_to_display[0])
 
-        fig_hist_static.add_vline(x=clicked_x_value, line_width=3, line_dash="dash", line_color="green")
-
-    if changed_id == 'fit-peak-button.n_clicks':
-        print("We need to start fitting some stuffs!!")
-        fig_hist_static.update_layout(hovermode='x unified')
-        fig_hist_static.update_layout(clickmode='event+select')
-
-    return fig_hist_static, stored_data, update_interval
+    return fig_hist, stored_data, update_interval, fit_peak_button
 
 
 @app.callback(Output('output-data-upload', 'children'),
@@ -344,6 +290,7 @@ def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
     Input("hist_file_selection", "search_value")
 )
 def update_options(search_value):
+    print("got here!")
     file_list_options = []
     for hist_filename in glob.glob('./hists/*.hist'):
         file_list_options.append({"label": hist_filename, "value": hist_filename})
@@ -353,5 +300,74 @@ def update_options(search_value):
     return file_list_options
 
 
+def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax):
+    # !! Need to check that all the channels exist as columns in the DF and remove those that don't
+    print("Do we get to static hist creation?")
+    for channel in channels_to_display:
+        if channel not in mydata_df.columns:
+            print("We're removing it!!")
+            channels_to_display.remove(channel)
+    print("in hist creation:", channels_to_display)
+
+    fig_hist = px.line(mydata_df[channels_to_display][xmin:xmax],
+                              line_shape='hv',
+                              render_mode='webgl',
+                              height=800,
+                              log_y=True,
+                              labels={'index': "Pulse Height", 'value': "Counts"})
+    fig_hist.update_layout(
+        showlegend=True,
+        legend_title_text='Channels',
+        plot_bgcolor="lightgrey",
+        xaxis_showgrid=False, yaxis_showgrid=False
+    )
+    fig_hist.update_layout(plot_bgcolor='rgba(0, 0, 0, 0)',
+                           paper_bgcolor='rgba(0, 0, 0, 0)',
+                           font_color='white')
+    fig_hist.update_yaxes(type='linear' if yaxis_type == 'Linear' else 'log')
+    return fig_hist
+
+
+def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel):
+    print("We need to start fitting some stuffs!!")
+    fig_hist.update_layout(hovermode='x unified')
+    fig_hist.update_layout(clickmode='event+select')
+    fit_peak_button = 1
+    update_interval = 9999999999
+
+    if click_data is not None:
+        clicked_x_value = click_data['points'][0]['x']
+        if (stored_data is not None) and ('fit_first_index' in stored_data.keys()):
+            fig_hist.add_vline(x=stored_data['fit_first_index'], line_width=3, line_dash="dash", line_color="green")
+            print("Point 1", stored_data['fit_first_index'], "Point 2", clicked_x_value)
+            hist_gen_tools = hist_gen()
+            #print("Channel to display", channels_to_display[0])
+            # We're just going to choose to use the first selected channel for now, change later if needed
+            hist_gen_tools.peak_fitting(mydata_df[channel], None, stored_data['fit_first_index'], clicked_x_value)
+            stored_data.pop('fit_first_index', None)  # Remove 1st point dict key when done
+            print("Resetting layout..")
+            fig_hist.update_layout(clickmode="none")
+            fig_hist.update_layout(hovermode='x')
+
+            fit_peak_button = 0
+        else:
+            stored_data = {'fit_first_index': clicked_x_value}
+            fig_hist.update_layout(hovermode='x unified')
+            fig_hist.update_layout(clickmode='event+select')
+
+        fig_hist.add_vline(x=clicked_x_value, line_width=3, line_dash="dash", line_color="green")
+    return stored_data, fig_hist, update_interval, fit_peak_button
+
+
+def remote_online_df(channels_to_display, type):
+    #  We're in online mode!! Let's see if we can grab remote data and display it
+    print("Online Graphing mode...")
+    for index, my_channel in enumerate(channels_to_display):
+        channels_to_display[index] = my_channel + "_" + type
+    myrequests = online_analyzer_requests()
+    mydata_df, status = myrequests.fetch_remote_hist(channels_to_display)
+    return mydata_df, channels_to_display, status
+
+
 if __name__ == '__main__':
-    app.run_server(debug=True, host='0.0.0.0')
+    app.run_server(debug=True, host='0.0.0.0', port=8051)
