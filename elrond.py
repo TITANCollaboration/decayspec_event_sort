@@ -6,6 +6,7 @@ from dash.dependencies import Input, Output, State, ALL  # , MATCH
 import plotly.express as px
 import pandas as pd
 # import numpy as np
+from pathlib import Path
 import glob
 import base64
 import datetime
@@ -47,7 +48,7 @@ channel_selections_from_hist = html.Div()
 channel_selections_from_daqs = html.Div([
                         html.Label(['GRIF16 Channel Select ',
                             dcc.Dropdown(
-                                id={'type': 'chan_dropdown', 'index': 'n_clicks'},
+                                id={'type': 'selected_chan_dropdown', 'index': 'n_clicks'},
                                 options=[
                                         {"label": chan, "value": 'grif16_' + str(chan)}
                                         for chan in range(0, 16)
@@ -58,7 +59,7 @@ channel_selections_from_daqs = html.Div([
                         ]),
                         html.Label(['MDPP16 Channel Select ',
                             dcc.Dropdown(
-                                id={'type': 'chan_dropdown', 'index': 'n_clicks'},
+                                id={'type': 'selected_chan_dropdown', 'index': 'n_clicks'},
                                 options=[
                                         {"label": chan, "value": 'mdpp16_' + str(chan)}
                                         for chan in range(0, 16)
@@ -68,18 +69,8 @@ channel_selections_from_daqs = html.Div([
                         ])
                         ], style=dict(display='flex'))
 
-offline_tab_content = html.Div([html.Button(
-                                    'Plus', id='add-hist', n_clicks=0,
-                                    style={'display': 'inline-block'}
-                                    ),
-                                html.Label(['Select Histogram ',
-                                    dcc.Dropdown(
-                                        id='hist_file_selection',
-                                        style={'width': '40vH', 'height': '40px'},
-                                        multi=False,
-                                    )
-                                ]),
-                                html.Div(id='hist_available_channel_dropdown', children=[])], style=dict(display='flex'))
+offline_tab_content = html.Div([html.Button('Plus', id='add-file-hist', n_clicks=0),
+                                html.Div(id='hist-dropdown-list', children=[])])
 
 online_tab_content = html.Div([
                         channel_selections_from_daqs])
@@ -124,6 +115,7 @@ app.layout = html.Div([
 
     #channel_selections_from_daqs,
     html.Hr(),
+
     html.Div(id='call-static-grapher'),
     html.Div([dcc.Graph(id='hist_graph_display')]),
     html.Div(dcc.Interval(id='interval-component', interval=999999999)),
@@ -154,6 +146,7 @@ app.layout = html.Div([
         html.Div(id='output-data-upload'),
     ])
 ])
+
 
 
 @app.callback(Output('tabs-content-inline', 'children'),
@@ -189,26 +182,58 @@ def zoom_event(relayoutData):
     return 0, 20000
 
 @app.callback(
+            Output('hist-dropdown-list', 'children'),
+            Input('add-file-hist', 'n_clicks'),
+             State('hist-dropdown-list', 'children')
+              )
+def create_hist_file_dropdown(nclicks, hist_dropdown):
+    # Create list of available files to select and imbed an element for channnel selection
+    # once file is selected
+    print("Got to create_hist_file_dropdown", nclicks)
+    my_id = 'hist_file_selection_' + str(nclicks)
+    chan_dropdown_id = 'chan_selection_' + str(nclicks)
+    hist_dropdown.append(html.Div([html.Label(['Select Histogram ',
+            dcc.Dropdown(
+                id={'type': 'hist_filename_dropdown', 'index': my_id},
+                style={'width': '40vH', 'height': '40px'},
+                options=get_hist_files_avail(),
+                multi=False,
+            )
+        ], ), html.Div(id={'type': 'chan_dropdown', 'index':chan_dropdown_id}, children=[])], style=dict(display='flex')))
+    return hist_dropdown
+
+
+@app.callback(
     Output('hist_filename', 'data'),
-#    Output('call-static-grapher', 'children'),
-    Output('hist_available_channel_dropdown', 'children'),
-    Input('hist_file_selection', 'value'),
-    State('hist_available_channel_dropdown', 'children'),
+    Output({'type': 'chan_dropdown', 'index': ALL},  'children'),
+    Input({'type': 'hist_filename_dropdown', 'index': ALL}, 'value'),
+    State({'type': 'chan_dropdown', 'index': ALL}, 'children'),
+    State({'type': 'chan_dropdown', 'index': ALL}, 'index'),
+
+#    State('hist_available_channel_dropdown', 'children'),
     State('hist_filename', 'data'),
 )
-def set_static_hist_filename(hist_file_selection, hist_available_channel_dropdown, stored_hist_filename):
+def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_available_channel_dropdown, chan_index, stored_hist_filename):
+    print("Chan index! :", chan_index)
     print("Hist selection", hist_file_selection)
-    print("Stored value", stored_hist_filename)
+    print("hist_available_channel_dropdown", hist_available_channel_dropdown)
     stored_hist_filename = hist_file_selection
-    if stored_hist_filename is not None:
-        mydata_df = pd.read_csv(hist_file_selection, sep='|', nrows=0, engine='c')
-        hist_available_channel_dropdown.append(html.Div([html.Label(['Available Channels ',
-                                            dcc.Dropdown(
-                                                        id={'type': 'chan_dropdown', 'index': 'n_clicks'},
-                                                        options=[{'label': i, 'value': i} for i in mydata_df.columns],
-                                                        style={'width': '40vH', 'height': '40px'},
-                                                        multi=True)
-                                                        ])]))
+    #hist_file_selection = hist_file_selection[0]
+    print("Stored value", stored_hist_filename)
+    for my_file_index in enumerate(hist_file_selection):
+        current_file = my_file_index[1]
+        if current_file is not None:
+            mydata_df = pd.read_csv(current_file, sep='|', nrows=0, engine='c')
+            print("Current File:", current_file, "Channels available:", mydata_df.columns)
+
+            hist_available_channel_dropdown[my_file_index[0]] = html.Div([html.Label(['Available Channels ',
+                                                dcc.Dropdown(
+                                                            id={'type': 'selected_chan_dropdown', 'index': my_file_index[0]},
+                                                            options=[{'label': i, 'value': i} for i in mydata_df.columns],
+                                                            style={'width': '40vH', 'height': '40px'},
+                                                            multi=True)
+                                                            ])])
+    print("hist_available_channel_dropdown AFTER", hist_available_channel_dropdown)
     return stored_hist_filename, hist_available_channel_dropdown
 
 @app.callback(
@@ -220,7 +245,7 @@ def set_static_hist_filename(hist_file_selection, hist_available_channel_dropdow
     Input('yaxis-type', 'value'),
     Input("xmin", "value"),
     Input("xmax", "value"),
-    Input({'type': 'chan_dropdown', 'index': ALL}, 'value'),
+    Input({'type': 'selected_chan_dropdown', 'index': ALL}, 'value'),
     Input('fit-peak-button', 'n_clicks'),
     Input('hist_graph_display', 'clickData'),
     State('peak_fit_first_point', 'data'),
@@ -232,6 +257,7 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
     print("Fit peak button:", fit_peak_button)
     print("Triggerd:", triggered)
     print("Tab mode:", tab_mode_selection)
+    print("Channels we should be looking at:", hist_available_channel_list, "Filename", stored_hist_filename)
     update_interval = 9999999999  # Set this to a long period of time assuming we're in offline mode, change it only when we are definitly in online mode with channels selected.
 
     channels_to_display = []
@@ -241,22 +267,30 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
 
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]  # determines what property changed, in this case which button was pushed
     print("Change id", changed_id)
-    hist_file_selection = stored_hist_filename #"./hists/run770.hist"
+    hist_file_selection = stored_hist_filename
 
     if len(channels_to_display) > 0:
         if tab_mode_selection == "offline-analysis":
             if hist_file_selection is None:
                 raise dash.exceptions.PreventUpdate
             print("Offline Graphing mode...")
-            mydata_df = pd.read_csv(hist_file_selection, sep='|', engine='c')
+            # need to loop over all the files.. change titles probably
+            mydata_df = pd.DataFrame()
+            for hist_file_enum in enumerate(stored_hist_filename):
+                mydata_df.insert(loc=0, column='mine', values=pd.read_csv(hist_file_enum[1], sep='|', engine='c'))
+                for my_column_name in hist_available_channel_list[hist_file_enum[0]]:
+                    file_path = Path(hist_file_enum[1])
+                    new_column_name = file_path.stem + "_chan_" + str(my_column_name)
+                    print("My new column name", new_column_name)
+                    mydata_df.rename(columns = {my_column_name: new_column_name}, inplace = True)
+            print(mydata_df)
         else:
             mydata_df, channels_to_display, status = remote_online_df(channels_to_display, "Pulse_Height")
             update_interval = 5*1000
-
         fig_hist = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax)
+
         fig_hist.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
         fig_hist.update_layout(hovermode='x')  # This gives a little box with info when hovering over data
-
     else:
         fig_hist = {}
 
@@ -285,11 +319,11 @@ def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
     return
 
 
-@app.callback(
-    Output("hist_file_selection", "options"),
-    Input("hist_file_selection", "search_value")
-)
-def update_options(search_value):
+#@app.callback(
+#    Output("hist_file_selection", "options"),
+#    Input("hist_file_selection", "search_value")
+#)
+def get_hist_files_avail():
     print("got here!")
     file_list_options = []
     for hist_filename in glob.glob('./hists/*.hist'):
