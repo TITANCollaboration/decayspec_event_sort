@@ -11,15 +11,16 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State, ALL  # , MATCH
 
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
-# import numpy as np
+import numpy as np
 from pathlib import Path
 import glob
 import base64
 import datetime
 from lib.histogram_generator import hist_gen
 from lib.online_analyzer_requests import online_analyzer_requests
-
+#from lib.radware_fit import radware_fit
 #from pathlib import Path
 
 app = dash.Dash(__name__)
@@ -53,7 +54,6 @@ nudat_form = html.Div([html.Form([
 channel_selections_from_hist = html.Div()
 
 channel_selections_from_daqs = html.Div([
-                        html.Label(['GRIF16 Channel Select ',
                             dcc.Dropdown(
                                 id={'type': 'selected_chan_dropdown', 'index': 'n_clicks'},
                                 options=[
@@ -61,10 +61,9 @@ channel_selections_from_daqs = html.Div([
                                         for chan in range(0, 16)
                                         ],
                                 style={'width': '40vH', 'height': '40px'},
-                                multi=True
-                            )
-                        ]),
-                        html.Label(['MDPP16 Channel Select ',
+                                multi=True,
+                                placeholder="GRIF16 Channel Select"
+                            ),
                             dcc.Dropdown(
                                 id={'type': 'selected_chan_dropdown', 'index': 'n_clicks'},
                                 options=[
@@ -72,8 +71,9 @@ channel_selections_from_daqs = html.Div([
                                         for chan in range(0, 16)
                                         ],
                                 style={'width': '40vH', 'height': '40px'},
-                                multi=True)
-                        ])
+                                multi=True,
+                                placeholder="MDPP16 Channel Select")
+
                         ], style=dict(display='flex'))
 
 offline_tab_content = html.Div([html.Button('Plus', id='add-file-hist', n_clicks=0),
@@ -197,23 +197,23 @@ def zoom_event(relayoutData):
               )
 def create_hist_file_dropdown(add_nclicks, remove_nclicks, hist_dropdown):
     # Create list of available files to select and imbed an element for channnel selection
-    # once file is selected
-    print("Got to create_hist_file_dropdown", add_nclicks)
+    # once file is selected, also add and remove file elements
     triggered = [t["prop_id"] for t in dash.callback_context.triggered]
-    print("Triggered by:", triggered)
     if triggered[0] != 'remove-file-hist.n_clicks':
         my_id = 'hist_file_selection_' + str(add_nclicks)
         chan_dropdown_id = 'chan_selection_' + str(add_nclicks)
-        hist_dropdown.append(html.Div([html.Label(['Select Histogram ',
+        hist_dropdown.append(html.Div([
                 dcc.Dropdown(
                     id={'type': 'hist_filename_dropdown', 'index': my_id},
                     style={'width': '40vH', 'height': '40px'},
                     options=get_hist_files_avail(),
                     multi=False,
+                    placeholder="Select Histogram"
                 )
-            ], ), html.Div(id={'type': 'chan_dropdown', 'index':chan_dropdown_id}, children=[])], style=dict(display='flex')))
+             , html.Div(id={'type': 'chan_dropdown', 'index':chan_dropdown_id}, children=[])], style=dict(display='flex')))
     elif triggered[0] == 'remove-file-hist.n_clicks':
-        hist_dropdown = hist_dropdown[:-1]
+        if len(hist_dropdown) > 1:
+            hist_dropdown = hist_dropdown[:-1]
     return hist_dropdown
 
 
@@ -223,7 +223,6 @@ def create_hist_file_dropdown(add_nclicks, remove_nclicks, hist_dropdown):
     Input({'type': 'hist_filename_dropdown', 'index': ALL}, 'value'),
     State({'type': 'chan_dropdown', 'index': ALL}, 'children'),
     State({'type': 'chan_dropdown', 'index': ALL}, 'index'),
-
 #    State('hist_available_channel_dropdown', 'children'),
     State('hist_filename', 'data'),
 )
@@ -245,13 +244,14 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
                 # of which channel goes with which file
                 channel_names.append(new_chanel_name(current_file, available_chan))
 
-            hist_available_channel_dropdown[my_file_index[0]] = html.Div([html.Label(['Available Channels ',
+            hist_available_channel_dropdown[my_file_index[0]] = html.Div([
                                                 dcc.Dropdown(
-                                                            id={'type': 'selected_chan_dropdown', 'index': my_file_index[0]},
+                                                            id={'type': 'selected_chan_dropdown', 'index': my_file_index[1]},
                                                             options=[{'label': i, 'value': j} for i, j in zip(mydata_df.columns, channel_names)],
                                                             style={'width': '40vH', 'height': '40px'},
-                                                            multi=True)
-                                                            ])])
+                                                            multi=True,
+                                                            placeholder="Select Channel")
+                                                            ])
     print("hist_available_channel_dropdown AFTER", hist_available_channel_dropdown)
     return stored_hist_filename, hist_available_channel_dropdown
 
@@ -260,6 +260,7 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
     Output('peak_fit_first_point', 'data'),
     Output('interval-component', 'interval'),
     Output('fit-peak-button', 'n_clicks'),
+    Output('hist_graph_display', 'clickData'),
     Input('interval-component', 'n_intervals'),
     Input('yaxis-type', 'value'),
     Input("xmin", "value"),
@@ -314,9 +315,10 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
         fig_hist = {}
 
     if fit_peak_button == 1:
-        stored_data, fig_hist, update_interval, fit_peak_button= fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channels_to_display[0])
+        #  !!Currently I'm only caring about one channel, need to have that be selectable!
+        stored_data, fig_hist, update_interval, fit_peak_button, click_data = fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channels_to_display[0])
 
-    return fig_hist, stored_data, update_interval, fit_peak_button
+    return fig_hist, stored_data, update_interval, fit_peak_button, click_data
 
 
 @app.callback(Output('output-data-upload', 'children'),
@@ -396,26 +398,36 @@ def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel):
 
     if click_data is not None:
         clicked_x_value = click_data['points'][0]['x']
-        if (stored_data is not None) and ('fit_first_index' in stored_data.keys()):
-            fig_hist.add_vline(x=stored_data['fit_first_index'], line_width=3, line_dash="dash", line_color="green")
-            print("Point 1", stored_data['fit_first_index'], "Point 2", clicked_x_value)
+        if (stored_data is not None) and (stored_data['fit_first_index'] is not None):#('fit_first_index' in stored_data.keys()):
+            fit_min_x = stored_data['fit_first_index']
+            fit_max_x = clicked_x_value
+            fig_hist.add_vline(x=fit_min_x, line_width=3, line_dash="dash", line_color="green")
+            print("Point 1", fit_min_x, "Point 2", fit_max_x)
             hist_gen_tools = hist_gen()
             #print("Channel to display", channels_to_display[0])
             # We're just going to choose to use the first selected channel for now, change later if needed
-            hist_gen_tools.peak_fitting(mydata_df[channel], None, stored_data['fit_first_index'], clicked_x_value)
+            true_peak_center, best_fit, result = hist_gen_tools.peak_fitting(mydata_df[channel], None, fit_min_x, fit_max_x, prominence=100)
+            fit_axis = np.linspace(fit_min_x, fit_max_x, fit_max_x-fit_min_x, dtype=int)
+            fig_hist.add_trace(go.Scatter(x=fit_axis,
+                                          y=best_fit,
+                                          showlegend=False,
+                                          line=dict(width=8))
+                                )
+            #fig_hist.update_traces(name="Best Fit")
             stored_data.pop('fit_first_index', None)  # Remove 1st point dict key when done
             print("Resetting layout..")
             fig_hist.update_layout(clickmode="none")
             fig_hist.update_layout(hovermode='x')
-
+            stored_data['fit_first_index'] = None
             fit_peak_button = 0
+            click_data = None
         else:
             stored_data = {'fit_first_index': clicked_x_value}
             fig_hist.update_layout(hovermode='x unified')
-            fig_hist.update_layout(clickmode='event+select')
+            #fig_hist.update_layout(clickmode='event+select')
 
         fig_hist.add_vline(x=clicked_x_value, line_width=3, line_dash="dash", line_color="green")
-    return stored_data, fig_hist, update_interval, fit_peak_button
+    return stored_data, fig_hist, update_interval, fit_peak_button, click_data
 
 
 def remote_online_df(channels_to_display, type):
