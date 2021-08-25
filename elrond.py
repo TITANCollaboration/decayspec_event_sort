@@ -1,3 +1,10 @@
+# *************************************************************************************
+# * Written by : Jon Ringuette
+# * Started : August 12 2021 - Still during the plague..
+# * Purpose : Online and offline analysis of histogram data
+#  * Requirements : Python 3, Dash  1.21+, pandas
+# *************************************************************************************
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -70,6 +77,7 @@ channel_selections_from_daqs = html.Div([
                         ], style=dict(display='flex'))
 
 offline_tab_content = html.Div([html.Button('Plus', id='add-file-hist', n_clicks=0),
+                                html.Button('Minus', id='remove-file-hist', n_clicks=0),
                                 html.Div(id='hist-dropdown-list', children=[])])
 
 online_tab_content = html.Div([
@@ -148,7 +156,6 @@ app.layout = html.Div([
 ])
 
 
-
 @app.callback(Output('tabs-content-inline', 'children'),
               Output('tab-mode-selection', 'data'),
               Input('mode-tabs', 'value'),
@@ -181,25 +188,32 @@ def zoom_event(relayoutData):
             return int(relayoutData['xaxis.range[0]']), int(relayoutData['xaxis.range[1]'])
     return 0, 20000
 
+
 @app.callback(
             Output('hist-dropdown-list', 'children'),
             Input('add-file-hist', 'n_clicks'),
-             State('hist-dropdown-list', 'children')
+            Input('remove-file-hist', 'n_clicks'),
+            State('hist-dropdown-list', 'children')
               )
-def create_hist_file_dropdown(nclicks, hist_dropdown):
+def create_hist_file_dropdown(add_nclicks, remove_nclicks, hist_dropdown):
     # Create list of available files to select and imbed an element for channnel selection
     # once file is selected
-    print("Got to create_hist_file_dropdown", nclicks)
-    my_id = 'hist_file_selection_' + str(nclicks)
-    chan_dropdown_id = 'chan_selection_' + str(nclicks)
-    hist_dropdown.append(html.Div([html.Label(['Select Histogram ',
-            dcc.Dropdown(
-                id={'type': 'hist_filename_dropdown', 'index': my_id},
-                style={'width': '40vH', 'height': '40px'},
-                options=get_hist_files_avail(),
-                multi=False,
-            )
-        ], ), html.Div(id={'type': 'chan_dropdown', 'index':chan_dropdown_id}, children=[])], style=dict(display='flex')))
+    print("Got to create_hist_file_dropdown", add_nclicks)
+    triggered = [t["prop_id"] for t in dash.callback_context.triggered]
+    print("Triggered by:", triggered)
+    if triggered[0] != 'remove-file-hist.n_clicks':
+        my_id = 'hist_file_selection_' + str(add_nclicks)
+        chan_dropdown_id = 'chan_selection_' + str(add_nclicks)
+        hist_dropdown.append(html.Div([html.Label(['Select Histogram ',
+                dcc.Dropdown(
+                    id={'type': 'hist_filename_dropdown', 'index': my_id},
+                    style={'width': '40vH', 'height': '40px'},
+                    options=get_hist_files_avail(),
+                    multi=False,
+                )
+            ], ), html.Div(id={'type': 'chan_dropdown', 'index':chan_dropdown_id}, children=[])], style=dict(display='flex')))
+    elif triggered[0] == 'remove-file-hist.n_clicks':
+        hist_dropdown = hist_dropdown[:-1]
     return hist_dropdown
 
 
@@ -225,11 +239,16 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
         if current_file is not None:
             mydata_df = pd.read_csv(current_file, sep='|', nrows=0, engine='c')
             print("Current File:", current_file, "Channels available:", mydata_df.columns)
+            channel_names = []
+            for available_chan in mydata_df.columns:
+                # Create channel values that are prefixed with the filename to keep track
+                # of which channel goes with which file
+                channel_names.append(new_chanel_name(current_file, available_chan))
 
             hist_available_channel_dropdown[my_file_index[0]] = html.Div([html.Label(['Available Channels ',
                                                 dcc.Dropdown(
                                                             id={'type': 'selected_chan_dropdown', 'index': my_file_index[0]},
-                                                            options=[{'label': i, 'value': i} for i in mydata_df.columns],
+                                                            options=[{'label': i, 'value': j} for i, j in zip(mydata_df.columns, channel_names)],
                                                             style={'width': '40vH', 'height': '40px'},
                                                             multi=True)
                                                             ])])
@@ -274,16 +293,16 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
             if hist_file_selection is None:
                 raise dash.exceptions.PreventUpdate
             print("Offline Graphing mode...")
-            # need to loop over all the files.. change titles probably
             mydata_df = pd.DataFrame()
             for hist_file_enum in enumerate(stored_hist_filename):
-                mydata_df.insert(loc=0, column='mine', values=pd.read_csv(hist_file_enum[1], sep='|', engine='c'))
-                for my_column_name in hist_available_channel_list[hist_file_enum[0]]:
-                    file_path = Path(hist_file_enum[1])
-                    new_column_name = file_path.stem + "_chan_" + str(my_column_name)
-                    print("My new column name", new_column_name)
-                    mydata_df.rename(columns = {my_column_name: new_column_name}, inplace = True)
+                if hist_file_enum[1] is not None:
+                    tmp_df = pd.read_csv(hist_file_enum[1], sep='|', engine='c')
+                    for my_column_name in tmp_df.columns:
+                        new_column_name = new_chanel_name(hist_file_enum[1], my_column_name)
+                        tmp_df.rename(columns={my_column_name: new_column_name}, inplace=True)
+                    mydata_df = pd.concat([mydata_df, tmp_df], axis=1).fillna(0)
             print(mydata_df)
+            print("hist available list:", hist_available_channel_list)
         else:
             mydata_df, channels_to_display, status = remote_online_df(channels_to_display, "Pulse_Height")
             update_interval = 5*1000
@@ -323,6 +342,12 @@ def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
 #    Output("hist_file_selection", "options"),
 #    Input("hist_file_selection", "search_value")
 #)
+def new_chanel_name(filename, channel):
+    file_path = Path(filename)  # Setup to extract filename prefix (stem)
+    new_column_name = file_path.stem + "_chan_" + str(channel)
+    return new_column_name
+
+
 def get_hist_files_avail():
     print("got here!")
     file_list_options = []
