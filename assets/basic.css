@@ -16,3 +16,14 @@ body { background-color: #4C4C4C;
     background-color: 'Black';
     color: black;
 }
+
+.header {
+  padding: 5px;
+  background: #5D6371;
+  color: white;
+  font-size: 20px;
+}
+
+.clear{
+  clear: both;
+}

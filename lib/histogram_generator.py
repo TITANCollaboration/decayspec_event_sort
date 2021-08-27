@@ -56,7 +56,7 @@ class hist_gen:
         self.gothere = 0
 
     def peak_fitting(self, my_hist, my_axes, min_fit_peak, max_fit_peak, prominence=1000):
-        print(my_hist, "min", min_fit_peak, "max", max_fit_peak)
+        #print(my_hist, "min", min_fit_peak, "max", max_fit_peak)
         #print("Min fit peak", min_fit_peak, "Max fit peak", max_fit_peak)
         # First we find the best peak in the area and then we fit it with a gaussian
         peak_indexes, peak_properties = scipy.signal.find_peaks(my_hist[min_fit_peak:max_fit_peak], prominence=prominence, width=1)  # Find all the major peaks
@@ -66,18 +66,19 @@ class hist_gen:
         highest_peak_index = np.unravel_index(peak_properties['prominences'].argmax(), peak_properties['prominences'].shape)[0]  # Find most prominant peak
         #pprint(peak_properties)
         best_index = peak_indexes[highest_peak_index]
+        amplitude = my_hist[min_fit_peak+best_index]
         local_energy_axis = np.linspace(1, max_fit_peak-min_fit_peak, max_fit_peak-min_fit_peak, dtype=int)
         gaussian = GaussianModel()
         background = LinearModel()
         model = gaussian + background  # Use Guassian for peak and linear for background
         result = model.fit(my_hist[min_fit_peak:max_fit_peak],
                            x=local_energy_axis,
-                           amplitude=my_hist[min_fit_peak+best_index],
+                           amplitude=amplitude,
                            sigma=1,
                            center=best_index,
                            scale_covar=False)  # Does the actual fitting
         if result.params['amplitude'].value > 0:
-            print(result.fit_report())
+            #print(result.fit_report())
             best_fit = result.best_fit
             true_peak_center = min_fit_peak + best_index
             fit_energy_axis = np.linspace(self.fit_peak_xmin,
@@ -86,7 +87,7 @@ class hist_gen:
                                           dtype=int)
             if my_axes is not None:
                 my_axes.plot(fit_energy_axis, best_fit)
-            return true_peak_center, best_fit, result
+            return true_peak_center, best_fit, result, amplitude
         return 0, 0
 
     def gaussian_smearing(self, initdata, sigma=1):
@@ -171,7 +172,7 @@ class hist_gen:
         if self.fit_peak is True:
             self.min_pulse_height = self.fit_peak_xmin
             self.max_pulse_height = self.fit_peak_xmax
-            true_peak_center, best_fit, result_data = self.peak_fitting(my_hist, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
+            true_peak_center, best_fit, result_data, amplitude = self.peak_fitting(my_hist, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
             print("Fix me... sometime..")
 
         self.graph_with_overlays(self.axes, energy_axis, my_hist, False)

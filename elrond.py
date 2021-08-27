@@ -44,9 +44,32 @@ tab_selected_style = {
     'padding': '2px'
 }
 
+upload_data = html.Div([
+        dcc.Upload(
+            id='upload-data',
+            children=html.Div([
+                'Drag and Drop or ',
+                html.A('Select Files')
+            ]),
+            style={
+                'width': '90%',
+                'height': '60px',
+                'lineHeight': '60px',
+                'borderWidth': '1px',
+                'borderStyle': 'dashed',
+                'borderRadius': '2px',
+                'textAlign': 'center',
+                'margin': '20px'
+            },
+            # Allow multiple files to be uploaded
+            multiple=True
+        ),
+        html.Div(id='output-data-upload'),
+    ], style={'float': 'right'})
+
 nudat_form = html.Div([html.Form([
                                 html.Label(['NuDat Lookup ',
-                                    dcc.Input(name='nuc', type="text", style={'width':'60px'}, minLength=2, maxLength=5, placeholder="ex. sb129")]),
+                                dcc.Input(name='nuc', type="text", style={'width':'60px'}, minLength=2, maxLength=5, placeholder="ex. sb129")]),
                                 html.Button('Submit', type='submit', value='go')],
                                 action='https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp',
                                 target="_blank", method='post')])
@@ -76,83 +99,63 @@ channel_selections_from_daqs = html.Div([
 
                         ], style=dict(display='flex'))
 
-offline_tab_content = html.Div([html.Button('Plus', id='add-file-hist', n_clicks=0),
+tabbed_modes = html.Div([dcc.Tabs(id='mode-tabs', value='offline-analysis', children=[
+                         dcc.Tab(label='Offline Analysis', value='offline-analysis', style=tab_style, selected_style=tab_selected_style),
+                         dcc.Tab(label='Online Analysis', value='online-analysis', style=tab_style, selected_style=tab_selected_style),
+                         ], style=tabs_styles)])
+
+offline_tab_content = html.Div([html.Div(className='clear'),
+                                upload_data,
+                                html.Button('Plus', id='add-file-hist', n_clicks=0),
                                 html.Button('Minus', id='remove-file-hist', n_clicks=0),
-                                html.Div(id='hist-dropdown-list', children=[])])
+                                html.Div(id='hist-dropdown-list', children=[]),
+                                html.Div(className='clear')
+                                ])
 
 online_tab_content = html.Div([
                         channel_selections_from_daqs])
 
-app.title = 'HistPlot'
+header = html.Header([html.Span('GammaGraph', style={'float': 'left'}),
+                      html.Span(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"), style={'float': 'right'}),
+                      html.Div(className='clear')], className='header')
+graph_controls = html.Div([
+                html.Label(['Y-Axis :',
+                    dcc.RadioItems(
+                            id='yaxis-type',
+                            options=[{'label': axis_type_select, 'value': axis_type_select} for axis_type_select in ['Linear', 'Log']],
+                            value='Linear',
+                            )
+                ], style=dict(display='flex')),
+                html.Label(['xmin ',
+                    dcc.Input(
+                        id="xmin", type="number",
+                        debounce=True, value=0)
+                ]),
+                html.Label(['xmax ',
+                    dcc.Input(
+                        id="xmax", type="number",
+                        debounce=True, value=20000)
+                ]),
+                html.Button('Unzoom', id='unzoom-graph', n_clicks=0),
+                ])
+app.title = 'GammaGraph'
 
 app.layout = html.Div([
-    html.Div([
-        html.H4(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
-        html.H2('Project Elrond', style={
-            'textAlign': 'center'})
-    ]),
+    header,
     nudat_form,
-    html.Div([
-        html.Label(['Y-Axis ',
-            dcc.RadioItems(
-                    id='yaxis-type',
-                    options=[{'label': axis_type_select, 'value': axis_type_select} for axis_type_select in ['Linear', 'Log']],
-                    value='Linear')
-                #    labelStyle={'display': 'inline-block'})
-        ]),
-        html.Label(['xmin ',
-            dcc.Input(
-                id="xmin", type="number",
-                debounce=True, value=0)
-        ]),
-        html.Label(['xmax ',
-            dcc.Input(
-                id="xmax", type="number",
-                debounce=True, value=20000)
-        ])
-    ]),
     html.Hr(),
-    html.Div([dcc.Tabs(id='mode-tabs', value='offline-analysis', children=[
-        dcc.Tab(label='Offline Analysis', value='offline-analysis', style=tab_style, selected_style=tab_selected_style),
-        dcc.Tab(label='Online Analysis', value='online-analysis', style=tab_style, selected_style=tab_selected_style),
-        ],
-        style=tabs_styles)]), #,, html.Div(id='tabs-content-inline')]),
+    graph_controls,
+    html.Hr(),
+    tabbed_modes,
     dcc.Store(id='tab-mode-selection'),
     dcc.Store(id='hist_filename'),
     html.Div(id='tabs-content-inline'),
-
-    #channel_selections_from_daqs,
     html.Hr(),
-
-    html.Div(id='call-static-grapher'),
     html.Div([dcc.Graph(id='hist_graph_display')]),
     html.Div(dcc.Interval(id='interval-component', interval=999999999)),
-    #html.Div(id='hist_graph_div', children=[dcc.Graph(id='hist_graph_display')]),
-
+    html.Div(id='channel_list_with_info', children=[]),
     html.Div([html.Button('Fit Peak', id='fit-peak-button', n_clicks=0),
               dcc.Store(id='peak_fit_first_point')]),
-    html.Div([
-        dcc.Upload(
-            id='upload-data',
-            children=html.Div([
-                'Drag and Drop or ',
-                html.A('Select Files')
-            ]),
-            style={
-                'width': '20%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px'
-            },
-            # Allow multiple files to be uploaded
-            multiple=True
-        ),
-        html.Div(id='output-data-upload'),
-    ])
 ])
 
 
@@ -162,7 +165,6 @@ app.layout = html.Div([
               State('tab-mode-selection', 'data')
               )
 def render_tab_content(tab_selection, tab_mode):
-    print("Getting tab initially!!")
     tab_mode = tab_selection
     if tab_selection == 'offline-analysis':
         return offline_tab_content, tab_mode
@@ -261,18 +263,21 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
     Output('interval-component', 'interval'),
     Output('fit-peak-button', 'n_clicks'),
     Output('hist_graph_display', 'clickData'),
+    Output('channel_list_with_info', 'children'),
     Input('interval-component', 'n_intervals'),
     Input('yaxis-type', 'value'),
     Input("xmin", "value"),
     Input("xmax", "value"),
+    Input("unzoom-graph", 'n_clicks'),
     Input({'type': 'selected_chan_dropdown', 'index': ALL}, 'value'),
     Input('fit-peak-button', 'n_clicks'),
     Input('hist_graph_display', 'clickData'),
+    Input('channel_list_with_info', 'children'),
     State('peak_fit_first_point', 'data'),
     State('hist_filename', 'data'),
     State('tab-mode-selection', 'data'),
     )
-def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_channel_list, fit_peak_button, click_data, stored_data, stored_hist_filename, tab_mode_selection):
+def process_static_hist(n_intervals, yaxis_type, xmin, xmax, unzoom, hist_available_channel_list, fit_peak_button, click_data, channel_list_with_info, stored_data, stored_hist_filename, tab_mode_selection):
     triggered = [t["prop_id"] for t in dash.callback_context.triggered]
     print("Fit peak button:", fit_peak_button)
     print("Triggerd:", triggered)
@@ -302,13 +307,15 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
                         new_column_name = new_chanel_name(hist_file_enum[1], my_column_name)
                         tmp_df.rename(columns={my_column_name: new_column_name}, inplace=True)
                     mydata_df = pd.concat([mydata_df, tmp_df], axis=1).fillna(0)
-            print(mydata_df)
             print("hist available list:", hist_available_channel_list)
         else:
             mydata_df, channels_to_display, status = remote_online_df(channels_to_display, "Pulse_Height")
             update_interval = 5*1000
+        if changed_id == "unzoom-graph.n_clicks":
+            xmin = 0
+            xmax = len(mydata_df.index)
         fig_hist = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax)
-
+        channel_list_with_info = generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display)
         fig_hist.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
         fig_hist.update_layout(hovermode='x')  # This gives a little box with info when hovering over data
     else:
@@ -318,7 +325,7 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, hist_available_chan
         #  !!Currently I'm only caring about one channel, need to have that be selectable!
         stored_data, fig_hist, update_interval, fit_peak_button, click_data = fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channels_to_display[0])
 
-    return fig_hist, stored_data, update_interval, fit_peak_button, click_data
+    return fig_hist, stored_data, update_interval, fit_peak_button, click_data, channel_list_with_info
 
 
 @app.callback(Output('output-data-upload', 'children'),
@@ -340,10 +347,16 @@ def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
     return
 
 
-#@app.callback(
-#    Output("hist_file_selection", "options"),
-#    Input("hist_file_selection", "search_value")
-#)
+def generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display):
+    channel_info_list_children = []
+    for channel in channels_to_display:
+        hit_count = mydata_df[channel].sum()
+        channel_info_list_children.append(html.Table([html.Td(channel), html.Td("{:,}".format(int(hit_count)))]))
+        #channel_info_list_children.append(htmlhtml.Div(channel))
+    print(channel_info_list_children)
+    return channel_info_list_children
+
+
 def new_chanel_name(filename, channel):
     file_path = Path(filename)  # Setup to extract filename prefix (stem)
     new_column_name = file_path.stem + "_chan_" + str(channel)
@@ -390,9 +403,14 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax):
 
 
 def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel):
-    print("We need to start fitting some stuffs!!")
-    fig_hist.update_layout(hovermode='x unified')
+    fig_hist.update_layout(hovermode='x unified',
+                           legend=dict(title=None),
+                           hoverlabel=dict(bgcolor='rgba(255,255,255,0.75)',
+                           font=dict(color='black')))
+    print("!!!!Fit function called!!!!")
     fig_hist.update_layout(clickmode='event+select')
+    # fig_hist.update_layout(hoverlabel=dict(bgcolor="black", font_size=12,))
+
     fit_peak_button = 1
     update_interval = 9999999999
 
@@ -402,20 +420,30 @@ def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel):
             fit_min_x = stored_data['fit_first_index']
             fit_max_x = clicked_x_value
             fig_hist.add_vline(x=fit_min_x, line_width=3, line_dash="dash", line_color="green")
+            fig_hist.add_vline(x=fit_max_x, line_width=3, line_dash="dash", line_color="green")
             print("Point 1", fit_min_x, "Point 2", fit_max_x)
             hist_gen_tools = hist_gen()
-            #print("Channel to display", channels_to_display[0])
             # We're just going to choose to use the first selected channel for now, change later if needed
-            true_peak_center, best_fit, result = hist_gen_tools.peak_fitting(mydata_df[channel], None, fit_min_x, fit_max_x, prominence=100)
+            true_peak_center, best_fit, result, amplitude = hist_gen_tools.peak_fitting(mydata_df[channel], None, fit_min_x, fit_max_x, prominence=100)
             fit_axis = np.linspace(fit_min_x, fit_max_x, fit_max_x-fit_min_x, dtype=int)
             fig_hist.add_trace(go.Scatter(x=fit_axis,
                                           y=best_fit,
                                           showlegend=False,
                                           line=dict(width=8))
                                 )
-            #fig_hist.update_traces(name="Best Fit")
+            annotation_text = "Center: " + str(round(fit_min_x + result.params['center'].value, 2)) + " FWHM: " + str(round(result.params['fwhm'].value, 2))
+            fig_hist.add_annotation(x=(fit_min_x + result.params['center'].value),
+                                    y=amplitude,
+                                    text=annotation_text,
+                                    showarrow=True,
+                                    arrowhead=1,
+                                    arrowwidth=2,
+                                    font=dict(size=18))
+
             stored_data.pop('fit_first_index', None)  # Remove 1st point dict key when done
+
             print("Resetting layout..")
+
             fig_hist.update_layout(clickmode="none")
             fig_hist.update_layout(hovermode='x')
             stored_data['fit_first_index'] = None
@@ -423,10 +451,9 @@ def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel):
             click_data = None
         else:
             stored_data = {'fit_first_index': clicked_x_value}
-            fig_hist.update_layout(hovermode='x unified')
-            #fig_hist.update_layout(clickmode='event+select')
+        #if fit_peak_button = 0:
+            fig_hist.add_vline(x=clicked_x_value, line_width=3, line_dash="dash", line_color="green")
 
-        fig_hist.add_vline(x=clicked_x_value, line_width=3, line_dash="dash", line_color="green")
     return stored_data, fig_hist, update_interval, fit_peak_button, click_data
 
 
