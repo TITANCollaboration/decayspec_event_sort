@@ -21,7 +21,6 @@ import datetime
 from lib.histogram_generator import hist_gen
 from lib.online_analyzer_requests import online_analyzer_requests
 #from lib.radware_fit import radware_fit
-#from pathlib import Path
 
 app = dash.Dash(__name__)
 app.config.suppress_callback_exceptions = True
@@ -153,9 +152,12 @@ app.layout = html.Div([
     html.Hr(),
     html.Div([dcc.Graph(id='hist_graph_display')]),
     html.Div(dcc.Interval(id='interval-component', interval=999999999)),
-    html.Div(id='channel_list_with_info', children=[]),
-    html.Div([html.Button('Fit Peak', id='fit-peak-button', n_clicks=0),
+    #html.Div([html.Button('Fit Peak', id='fit-peak-button', n_clicks=0),
+    #          dcc.Store(id='peak_fit_first_point')]),
+
+    html.Div([html.Button('Fit Peak', id='fit-peak-button', n_clicks=0, value='testme_chan_100'),
               dcc.Store(id='peak_fit_first_point')]),
+    html.Div(id='channel_list_with_info', children=[]),
 ])
 
 
@@ -271,15 +273,17 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
     Input("unzoom-graph", 'n_clicks'),
     Input({'type': 'selected_chan_dropdown', 'index': ALL}, 'value'),
     Input('fit-peak-button', 'n_clicks'),
+    Input('fit-peak-button', 'value'),
     Input('hist_graph_display', 'clickData'),
     Input('channel_list_with_info', 'children'),
     State('peak_fit_first_point', 'data'),
     State('hist_filename', 'data'),
     State('tab-mode-selection', 'data'),
     )
-def process_static_hist(n_intervals, yaxis_type, xmin, xmax, unzoom, hist_available_channel_list, fit_peak_button, click_data, channel_list_with_info, stored_data, stored_hist_filename, tab_mode_selection):
+def process_static_hist(n_intervals, yaxis_type, xmin, xmax, unzoom, hist_available_channel_list, fit_peak_button, fit_peak_button_value, click_data, channel_list_with_info, stored_data, stored_hist_filename, tab_mode_selection):
     triggered = [t["prop_id"] for t in dash.callback_context.triggered]
     print("Fit peak button:", fit_peak_button)
+    print("Fit peak button value", fit_peak_button_value)
     print("Triggerd:", triggered)
     print("Tab mode:", tab_mode_selection)
     print("Channels we should be looking at:", hist_available_channel_list, "Filename", stored_hist_filename)
@@ -346,16 +350,56 @@ def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
             output_file.close()
     return
 
-
 def generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display):
     channel_info_list_children = []
+    chan_radio_options = []
+    hit_count = []
     for channel in channels_to_display:
-        hit_count = mydata_df[channel].sum()
-        channel_info_list_children.append(html.Table([html.Td(channel), html.Td("{:,}".format(int(hit_count)))]))
-        #channel_info_list_children.append(htmlhtml.Div(channel))
+        chan_radio_options.append({"label": channel, "value": (channel + "_fit")})
+        hit_count.append(mydata_df[channel].sum())
+
+    channel_info_list_children.append(
+                                html.Div([html.H4("Fit", className='row'),
+                                    dcc.RadioItems(
+                                            options=chan_radio_options,
+                                            labelClassName='row',
+                                            labelStyle={'display': 'block'}),
+                                          ], className='column'))
+    hit_count_children = []
+    hit_count_children.append(html.H4("Hit Count", className='row'))
+    for channel_sum in hit_count:
+        hit_count_children.append(html.Div(html.Div(channel_sum, className='row')))
+
+    channel_info_list_children.append(html.Div(className='column', children=hit_count_children))
+
+    return channel_info_list_children
+"""
+def generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display):
+    channel_info_list_children = []
+    chan_radio_options = []
+    hit_count = []
+    for channel in channels_to_display:
+        chan_radio_options.append({"label": channel, "value": (channel + "_fit")})
+        hit_count.append(mydata_df[channel].sum())
+
+    channel_info_list_children.append(
+                                html.Div([html.H2("Fit", className='grid-item1'),
+                                    dcc.RadioItems(
+                                            options=chan_radio_options,
+                                            className='grid-item1',
+                                            labelClassName='grid-item1',
+                                            labelStyle={'display': 'block'})
+                                          ], className='grid-container'))
+    hit_count_children = []
+    hit_count_children.append(html.H2("Hit Count", className='grid-item2'))
+    for channel_sum in hit_count:
+        hit_count_children.append(html.Div(html.Div(channel_sum)))
+
+    channel_info_list_children.append(html.Div(className='grid-item2', children=hit_count_children))
+
     print(channel_info_list_children)
     return channel_info_list_children
-
+"""
 
 def new_chanel_name(filename, channel):
     file_path = Path(filename)  # Setup to extract filename prefix (stem)
@@ -364,13 +408,9 @@ def new_chanel_name(filename, channel):
 
 
 def get_hist_files_avail():
-    print("got here!")
     file_list_options = []
     for hist_filename in glob.glob('./hists/*.hist'):
         file_list_options.append({"label": hist_filename, "value": hist_filename})
-    #if not search_value:
-    #    print("Here we go..")
-    #    raise dash.exceptions.PreventUpdate
     return file_list_options
 
 
