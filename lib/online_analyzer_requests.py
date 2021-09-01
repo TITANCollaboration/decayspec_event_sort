@@ -9,7 +9,7 @@ class online_analyzer_requests:
         return
 
     def fetch_remote_hist(self, channels):
-        payload = {'cmd': 'callspechandler', 'spectrum0': 'mdpp16_0_Pulse_Height'}
+        payload = {'cmd': 'callspechandler'}
         for index, my_channel in enumerate(channels):
             spectrum = 'spectrum' + str(index)
             payload[spectrum] = my_channel

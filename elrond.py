@@ -8,12 +8,13 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State, ALL  # , MATCH
-
+from dash.dependencies import Input, Output, State, ALL, MATCH
+from random import randrange
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+import json
 from pathlib import Path
 import glob
 import base64
@@ -178,39 +179,59 @@ def render_tab_content(tab_selection, tab_mode):
               Output('temporal-hist-interval-component', 'interval'),
               Output('graphing_online_ph_vs_time', 'data'),
               Output({'type': 'pulse_height_vs_time', 'index': ALL}, 'n_clicks'),
+              [Output({'type': 'online_ph_v_time_hist_graph', 'index': ALL}, 'figure')],
               Input('temporal-hist-interval-component', 'n_intervals'),
               Input('temporal-hist-interval-component', 'interval'),
               Input({'type': 'pulse_height_vs_time', 'index': ALL}, 'n_clicks'),
               Input({'type': 'selected_chan_dropdown', 'index': ALL}, 'value'),
               Input({'type': 'temporal_graph', 'index': ALL}, 'children'),
               State('graphing_online_ph_vs_time', 'data'),
+              State({'type': 'online_ph_v_time_hist_graph', 'index': ALL}, 'figure'),
               )
-def online_temporal_histogram(temporal_hist_interval_component, temporal_hist_interval_time, pulse_height_vs_time_nclicks, selected_chan_dropdown_value, temporal_graph_children, graphing_online_ph_vs_time_data):
-    temporal_hist_interval_time = temporal_hist_interval_time
+def online_temporal_histogram(temporal_hist_interval_component, temporal_hist_interval_time, pulse_height_vs_time_nclicks, selected_chan_dropdown_value, temporal_graph_children, graphing_online_ph_vs_time_data, mine):
+    return_figure_data = True  # if we should return figure data or just []
+    online_ph_v_time_hist_graph = []
+    pulse_height_vs_time_n_clicks_output = []
     #  Check if mdpp16_0 is in the list, there are some problems here but oh well, also make sure we aren't
     #  already performing a temporal histogram plot
-    pulse_height_vs_time_n_clicks_output = []
 
-    if ('mdpp16_0' in str(selected_chan_dropdown_value)) and (graphing_online_ph_vs_time_data <= 0):
+    triggered = [t["prop_id"] for t in dash.callback_context.triggered]
+    if triggered[0] == '.':  # This should be the initial run
+        graphing_online_ph_vs_time_data = False
+
+    if ('mdpp16_0' in str(selected_chan_dropdown_value)) and (graphing_online_ph_vs_time_data is False):
         temporal_graph_children[0] = [html.Button('PH v. Time', id={'type': 'pulse_height_vs_time', 'index': 'pulse_height_vs_time'}, n_clicks=0)]
+
     if pulse_height_vs_time_nclicks:  # Check if it exists or if this is just the init run
         if (pulse_height_vs_time_nclicks[0] == 1):  # Check if the button was pushed
-            pulse_height_vs_time_n_clicks_output =  pulse_height_vs_time_nclicks
+            if graphing_online_ph_vs_time_data is True:  # Flip value every button press
+                graphing_online_ph_vs_time_data = False
+            else:
+                graphing_online_ph_vs_time_data = True
+            pulse_height_vs_time_n_clicks_output = pulse_height_vs_time_nclicks
             pulse_height_vs_time_n_clicks_output[0] = pulse_height_vs_time_n_clicks_output[0] - 1
 
-            graphing_online_ph_vs_time_data = graphing_online_ph_vs_time_data + 1  # if it was incriment the stored variable
-            if graphing_online_ph_vs_time_data % 2 == 0:  # if it's even shut off the graph and interval timer
+            if graphing_online_ph_vs_time_data is False:  # if it's even shut off the graph and interval timer
                 temporal_hist_interval_time = 999999999
                 temporal_graph_children[0] = [html.Button('PH v. Time', id={'type': 'pulse_height_vs_time', 'index': 'pulse_height_vs_time'}, n_clicks=0)]
-            else:
-                temporal_graph_children[0].append(dcc.Graph(id='online_ph_v_time_hist_graph'))
+                return_figure_data = False
+                online_ph_v_time_hist_graph = [create_temporal_hist()] # Need to append a graph one more time before the dcc.graph element goes away
+            else:  # We should be graphing here..
+                online_ph_v_time_hist_graph = create_temporal_hist()  # Get initial graphing data
+                temporal_graph_children[0].append(dcc.Graph(id={'type': 'online_ph_v_time_hist_graph', 'index': 'online_ph_v_time_hist_graph_index'}, figure=online_ph_v_time_hist_graph))
                 temporal_hist_interval_time = 5*1000
-    else:
-        graphing_online_ph_vs_time_data = 0
-    if graphing_online_ph_vs_time_data > 0:  # Check if we've set stuff one and need to handle this differently
-        pulse_height_vs_time_n_clicks_output = pulse_height_vs_time_nclicks
+                return_figure_data = False
+        else:
+            pulse_height_vs_time_n_clicks_output = pulse_height_vs_time_nclicks
 
-    return temporal_graph_children, temporal_hist_interval_time, graphing_online_ph_vs_time_data, pulse_height_vs_time_n_clicks_output
+    if graphing_online_ph_vs_time_data is True:  # Check if we've set stuff and need to handle this differently
+        if return_figure_data is True:
+            online_ph_v_time_hist_graph = [create_temporal_hist()]
+        else:
+            online_ph_v_time_hist_graph = []
+
+        pulse_height_vs_time_n_clicks_output = pulse_height_vs_time_nclicks
+    return temporal_graph_children, temporal_hist_interval_time, graphing_online_ph_vs_time_data, pulse_height_vs_time_n_clicks_output, online_ph_v_time_hist_graph
 
 @app.callback(
     Output('xmin', 'value'),
@@ -426,6 +447,15 @@ def get_hist_files_avail():
     return file_list_options
 
 
+def create_temporal_hist():
+    print("!!Got to Create Temporal Histogram!!")
+    img_rgb = np.array([[[randrange(0, 255), 0, 0], [0, randrange(0, 255), 0], [0, 0, 255]],
+                    [[0, 255, 0], [0, 0, 255], [randrange(0, 255), 0, 0]]
+                   ], dtype=np.uint8)
+    fig_time_hist = px.imshow(img_rgb)
+    return fig_time_hist
+
+
 def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax):
     # !! Need to check that all the channels exist as columns in the DF and remove those that don't
     print("Do we get to static hist creation?")
@@ -434,11 +464,11 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax):
             channels_to_display.remove(channel)
 
     fig_hist = px.line(mydata_df[channels_to_display][xmin:xmax],
-                              line_shape='hv',
-                              render_mode='webgl',
-                              height=800,
-                              log_y=True,
-                              labels={'index': "Pulse Height", 'value': "Counts"})
+                       line_shape='hv',
+                       render_mode='webgl',
+                       height=800,
+                       log_y=True,
+                       labels={'index': "Pulse Height", 'value': "Counts"})
     fig_hist.update_layout(
         showlegend=True,
         legend_title_text='Channels',
