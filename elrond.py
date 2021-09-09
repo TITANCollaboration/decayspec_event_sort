@@ -13,14 +13,18 @@ from random import randrange
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+from math import log
 import numpy as np
 import json
 from pathlib import Path
 import glob
 import base64
 import datetime
+from os.path import exists
 from lib.histogram_generator import hist_gen
 from lib.online_analyzer_requests import online_analyzer_requests
+from lib.energy_calibration import energy_calibration
+
 #from lib.radware_fit import radware_fit
 
 app = dash.Dash(__name__)
@@ -378,7 +382,7 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, unzoom, hist_availa
         if changed_id == "unzoom-graph.n_clicks":
             xmin = 0
             xmax = len(mydata_df.index)
-        fig_hist = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax)
+        fig_hist, energy_axis = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, stored_hist_filename)
         channel_list_with_info = generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display, fit_peak_button_value)
         fig_hist.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
         fig_hist.update_layout(hovermode='x')  # This gives a little box with info when hovering over data
@@ -387,7 +391,7 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, unzoom, hist_availa
 
     if fit_peak_button == 1:
         #  !!Currently I'm only caring about one channel, need to have that be selectable!
-        stored_data, fig_hist, update_interval, fit_peak_button, click_data = fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, fit_peak_button_value)
+        stored_data, fig_hist, update_interval, fit_peak_button, click_data = fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, fit_peak_button_value, energy_axis, stored_hist_filename)
 
     return fig_hist, stored_data, update_interval, fit_peak_button, click_data, channel_list_with_info, fit_peak_button_value
 
@@ -409,10 +413,14 @@ def save_uploaded_hist(list_of_contents, list_of_names, list_of_dates):
             output_file.close()
     return
 
+
 def generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display, fit_peak_button_value):
     channel_info_list_children = []
     chan_radio_options = []
     hit_count = []
+    print("Fit Peak Button Value:", fit_peak_button_value)
+    if fit_peak_button_value is None:  # Put in a default value of the first available channel if nothing has been selected
+        fit_peak_button_value = channels_to_display[0]
     for channel in channels_to_display:
         chan_radio_options.append({"label": channel, "value": (channel)})
         hit_count.append(mydata_df[channel].sum())
@@ -448,41 +456,105 @@ def get_hist_files_avail():
 
 
 def create_temporal_hist():
+    myrequests = online_analyzer_requests()
+    mydata_df, status = myrequests.fetch_remote_2d_hist()
+#    print(len(mydata_df['hist']))
+    numpy_2d_array = np.vstack(mydata_df['hist'])
     print("!!Got to Create Temporal Histogram!!")
     img_rgb = np.array([[[randrange(0, 255), 0, 0], [0, randrange(0, 255), 0], [0, 0, 255]],
                     [[0, 255, 0], [0, 0, 255], [randrange(0, 255), 0, 0]]
                    ], dtype=np.uint8)
-    fig_time_hist = px.imshow(img_rgb)
+    fig_time_hist = px.imshow(numpy_2d_array)
+    #fig_time_hist = px.imshow(mydata_df)
     return fig_time_hist
 
 
-def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax):
+def generate_energy_axis(mydata_df, channel, hist_filename):
+    cal_file = './hists/' + str(Path(hist_filename).stem) + '.cal'
+    print("Cal file:", cal_file)
+    bin_num = mydata_df[channel].count()
+    if exists(cal_file):  # Check if cal file exists for first filename used, ignore the rest.
+        bin_num = mydata_df[channel].count()
+        my_energy_calibration = energy_calibration(cal_file)
+        my_energy_calibration.read_in_calibration_file()
+        first_channel = int(channel.split('_')[-1])
+        max_x_value = (bin_num * my_energy_calibration.cal_dict[first_channel][0]) + my_energy_calibration.cal_dict[first_channel][1]
+        energy_axis = np.linspace(0, max_x_value, bin_num)
+        print(energy_axis)
+    else:
+        max_x_value = bin_num
+        energy_axis = np.linspace(0, bin_num, bin_num)
+    return energy_axis, max_x_value
+
+
+def draw_fit_annotations_from_file(fig_hist, hist_filename, channel, yaxis_type):
+    # Draw annotations for the fit of peaks
+    fit_file_name = './hists/' + str(Path(hist_filename).stem) + '.fit'
+    if exists(fit_file_name):
+        with open(fit_file_name) as fit_file_pointer:
+            for json_line in fit_file_pointer:
+                fit_data = json.loads(json_line)
+                if yaxis_type == 'Log':
+                    amplitude = log(fit_data['amplitude']) / log(10)
+                else:
+                    amplitude = fit_data['amplitude']
+                annotation_text = "Center: " + str(round(fit_data['center'], 2)) + " FWHM: " + str(round(fit_data['fwhm'], 2))
+                try:
+                    fig_hist.add_annotation(x=(fit_data['center']),
+                                            y=amplitude,
+                                            text=annotation_text,
+                                            showarrow=True,
+                                            arrowcolor='red',
+                                            arrowhead=1,
+                                            arrowwidth=2,
+                                            font=dict(size=18))
+                except:
+                    print("Nope")
+    return fig_hist
+
+
+def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, hist_filenames):
     # !! Need to check that all the channels exist as columns in the DF and remove those that don't
-    print("Do we get to static hist creation?")
     for channel in channels_to_display:
         if channel not in mydata_df.columns:
             channels_to_display.remove(channel)
+    energy_axis, max_x_value = generate_energy_axis(mydata_df, channels_to_display[0], hist_filenames[0])
 
-    fig_hist = px.line(mydata_df[channels_to_display][xmin:xmax],
+    fig_hist = px.line(x=energy_axis, y=mydata_df[channels_to_display[0]],
                        line_shape='hv',
                        render_mode='webgl',
                        height=800,
                        log_y=True,
-                       labels={'index': "Pulse Height", 'value': "Counts"})
+                       labels={'x': "Pulse Height", 'y': "Counts"},
+                       )
+    if xmax > max_x_value:  # Ensure we don't draw a crazy axis initially
+        xmax = max_x_value
+    fig_hist.update_xaxes(range=[xmin, xmax])
     fig_hist.update_layout(
-        showlegend=True,
-        legend_title_text='Channels',
-        plot_bgcolor="lightgrey",
-        xaxis_showgrid=False, yaxis_showgrid=False
-    )
+        title={
+            'text': "Ba133 - Calibrated - LEGe",
+            'y':0.9,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'})
+    fig_hist.update_layout(
+                            showlegend=True,
+                            legend_title_text='Channels',
+                            plot_bgcolor="lightgrey",
+                            xaxis_showgrid=False, yaxis_showgrid=False,
+                            font=dict(size=18)
+                            )
     fig_hist.update_layout(plot_bgcolor='rgba(0, 0, 0, 0)',
                            paper_bgcolor='rgba(0, 0, 0, 0)',
                            font_color='white')
     fig_hist.update_yaxes(type='linear' if yaxis_type == 'Linear' else 'log')
-    return fig_hist
+    fig_hist = draw_fit_annotations_from_file(fig_hist, hist_filenames[0], channels_to_display[0], yaxis_type)
+
+    return fig_hist, energy_axis
 
 
-def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel):
+def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel, energy_axis, hist_filenames):
+    fit_file_name = './hists/' + str(Path(hist_filenames[0]).stem) + '.fit'  # Set filename to save peak fittings to
     fig_hist.update_layout(hovermode='x unified',
                            legend=dict(title=None),
                            hoverlabel=dict(bgcolor='rgba(255,255,255,0.75)',
@@ -503,15 +575,19 @@ def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel):
             print("Point 1", fit_min_x, "Point 2", fit_max_x)
             hist_gen_tools = hist_gen()
             # We're just going to choose to use the first selected channel for now, change later if needed
-            true_peak_center, best_fit, result, amplitude = hist_gen_tools.peak_fitting(mydata_df[channel], None, fit_min_x, fit_max_x, prominence=100)
-            fit_axis = np.linspace(fit_min_x, fit_max_x, fit_max_x-fit_min_x, dtype=int)
-            fig_hist.add_trace(go.Scatter(x=fit_axis,
+            true_peak_center, best_fit, result, amplitude, fit_energy_axis = hist_gen_tools.peak_fitting(mydata_df[channel], energy_axis, None, fit_min_x, fit_max_x, prominence=100)
+            fit_dict = {'center': result.params['center'].value, 'fwhm': result.params['fwhm'].value, 'amplitude': amplitude}
+            with open(fit_file_name, 'a') as json_file:
+                json_str = json.dumps(fit_dict) + "\n"  # Write each entry as a new json line
+                json_file.writelines(json_str)
+
+            fig_hist.add_trace(go.Scatter(x=fit_energy_axis,
                                           y=best_fit,
                                           showlegend=False,
                                           line=dict(width=8))
                                 )
-            annotation_text = "Center: " + str(round(fit_min_x + result.params['center'].value, 2)) + " FWHM: " + str(round(result.params['fwhm'].value, 2))
-            fig_hist.add_annotation(x=(fit_min_x + result.params['center'].value),
+            annotation_text = "Center: " + str(round(result.params['center'].value, 2)) + " FWHM: " + str(round(result.params['fwhm'].value, 2))
+            fig_hist.add_annotation(x=(result.params['center'].value),
                                     y=amplitude,
                                     text=annotation_text,
                                     showarrow=True,

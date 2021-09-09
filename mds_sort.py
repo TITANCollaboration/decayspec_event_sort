@@ -24,7 +24,7 @@ def main():
                         help="Set length of event window, done in ticks @ 100Mhz, 1 tick == 0.001ms")
     parser.add_argument('--cores', dest='cores', type=int, default=2, required=False,
                         help="Number of cpu cores to use while processing.  Note more cores will use more memory as the buffer will be multiplied by cores")
-    parser.add_argument('--buffer_size', dest='buffer_size', type=int, default=50000, required=False,
+    parser.add_argument('--buffer_size', dest='buffer_size', type=int, default=500000, required=False,
                         help="Buffer size, determines how many hits to read in before sorting and writing.  Larger buffer == more ram used")
     parser.add_argument('--output_format', dest='output_format', default='csv', required=False,
                         help="Format : ROOT, HISTOGRAM, CSV, HDF5 (DEFAULT  : CSV) (Only CSV fully works right now, ROOT is slow)")

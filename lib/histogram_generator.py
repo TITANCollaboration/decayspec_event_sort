@@ -14,9 +14,10 @@ from pprint import pprint
 from lmfit.models import ExpressionModel
 
 class hist_gen:
-    def __init__(self, input_filename=None, save_all=False, overlay_files=None, max_pulse_height=8192, min_pulse_height=0, title=None, xlabel=None, ylabel=None, energy_labels=None, y_axis_min=0, y_axis_max=None, zoom=False, zoom_xmin=None, zoom_xmax=None, zoom_ymin=None, zoom_ymax=None, ylog_zoom=None, overlay_multipliers=None, output_filename=None, ylog=False, bin_number=None):
+    def __init__(self, input_filename=None, save_all=False, overlay_files=None, max_pulse_height=8192, min_pulse_height=0, title=None, xlabel=None, ylabel=None, energy_labels=None, y_axis_min=0, y_axis_max=None, zoom=False, zoom_xmin=None, zoom_xmax=None, zoom_ymin=None, zoom_ymax=None, ylog_zoom=None, overlay_multipliers=None, output_filename=None, ylog=False, bin_number=None, xaxis_max=2**16):
         self.flags = 1  # if there is a flag that needs to be used for the root file raw data
         self.bin_number = bin_number
+        self.xaxis_max = xaxis_max
         self.min_pulse_height = min_pulse_height  # min x value
         self.max_pulse_height = max_pulse_height  # max x value
         self.title = title  # main graph title
@@ -26,7 +27,7 @@ class hist_gen:
         self.zoom_xmin = zoom_xmin  # x min for zoomed region
         self.zoom_xmax = zoom_xmax  # y min for zoomed region
         self.zoom = zoom
-        self.zoom_label = True  # If should label zoomed region
+        self.zoom_label = False  # If should label zoomed region
         self.ylog = ylog
         self.ylog_zoom = ylog_zoom  # If zoomed region shold be in log scale
         self.title_font_size = 20  # Title font size
@@ -47,48 +48,56 @@ class hist_gen:
         #self.overlay_multipliers = [1e4, 1e5, 1e6, 1e7]  # Multiplies to apply to zoomed region
         self.overlay_chan = 99  # channel in hist file for overlay (small zoomed graph)
         self.chan = 99  # channel used for primary graph and for saving to hist format
-        self.fit_peak_xmin = 6400
-        self.fit_peak_xmax = 7000
+        self.fit_peak_xmin = 80
+        self.fit_peak_xmax = 82.5
         # --zoom_xmin 1140 --zoom_xmax 1180
         self.fit_peak = True
         self.smear_overlay = False
         self.output_filename = output_filename
+        self.legend = False
         self.gothere = 0
 
-    def peak_fitting(self, my_hist, my_axes, min_fit_peak, max_fit_peak, prominence=1000):
+    def peak_fitting(self, my_hist, energy_axis, my_axes, min_fit_peak, max_fit_peak, prominence=1000):
         #print(my_hist, "min", min_fit_peak, "max", max_fit_peak)
         #print("Min fit peak", min_fit_peak, "Max fit peak", max_fit_peak)
         # First we find the best peak in the area and then we fit it with a gaussian
-        peak_indexes, peak_properties = scipy.signal.find_peaks(my_hist[min_fit_peak:max_fit_peak], prominence=prominence, width=1)  # Find all the major peaks
+        calibrated_min_fit_peak = min(range(len(energy_axis)), key=lambda i: abs(energy_axis[i]-min_fit_peak))
+        calibrated_max_fit_peak = min(range(len(energy_axis)), key=lambda i: abs(energy_axis[i]-max_fit_peak))
+        print("Min Fit index:", calibrated_min_fit_peak, "Min Fit value:", energy_axis[calibrated_min_fit_peak])
+        print("Max Fit index:", calibrated_max_fit_peak, "Max Fit value:", energy_axis[calibrated_max_fit_peak])
+
+        #print(my_hist[calibrated_min_fit_peak:calibrated_max_fit_peak])
+
+        #peak_indexes, peak_properties = scipy.signal.find_peaks(my_hist[min_fit_peak:max_fit_peak], prominence=prominence, width=1)  # Find all the major peaks
+        peak_indexes, peak_properties = scipy.signal.find_peaks(my_hist[calibrated_min_fit_peak:calibrated_max_fit_peak], prominence=prominence, width=0.5)  # Find all the major peaks
         #print(peak_indexes)
         if not peak_indexes.any():
-            return 0, 0
+            return 0, 0, 0, 0, 0
         highest_peak_index = np.unravel_index(peak_properties['prominences'].argmax(), peak_properties['prominences'].shape)[0]  # Find most prominant peak
-        #pprint(peak_properties)
         best_index = peak_indexes[highest_peak_index]
-        amplitude = my_hist[min_fit_peak+best_index]
-        local_energy_axis = np.linspace(1, max_fit_peak-min_fit_peak, max_fit_peak-min_fit_peak, dtype=int)
+        amplitude = my_hist[best_index + calibrated_min_fit_peak]
+
+#        local_energy_axis = np.linspace(calibrated_min_fit_peak, calibrated_max_fit_peak, calibrated_max_fit_peak-calibrated_min_fit_peak)
+        local_energy_axis = energy_axis[calibrated_min_fit_peak:calibrated_max_fit_peak]
+
         gaussian = GaussianModel()
         background = LinearModel()
         model = gaussian + background  # Use Guassian for peak and linear for background
-        result = model.fit(my_hist[min_fit_peak:max_fit_peak],
+        result = model.fit(my_hist[calibrated_min_fit_peak:calibrated_max_fit_peak],
                            x=local_energy_axis,
+                           center=local_energy_axis[best_index],  # + calibrated_min_fit_peak
                            amplitude=amplitude,
                            sigma=1,
-                           center=best_index,
                            scale_covar=False)  # Does the actual fitting
         if result.params['amplitude'].value > 0:
-            #print(result.fit_report())
+            print(result.fit_report())
             best_fit = result.best_fit
-            true_peak_center = min_fit_peak + best_index
-            fit_energy_axis = np.linspace(self.fit_peak_xmin,
-                                          self.fit_peak_xmax,
-                                          self.fit_peak_xmax-self.fit_peak_xmin,
-                                          dtype=int)
+            true_peak_center = result.params['center'].value
+
             if my_axes is not None:
-                my_axes.plot(fit_energy_axis, best_fit)
-            return true_peak_center, best_fit, result, amplitude
-        return 0, 0
+                my_axes.plot(local_energy_axis, best_fit)
+            return true_peak_center, best_fit, result, amplitude, local_energy_axis
+        return 0, 0, 0, 0, 0
 
     def gaussian_smearing(self, initdata, sigma=1):
         # Apply guassian smearing to data, set via sigma value.
@@ -99,9 +108,9 @@ class hist_gen:
     def label_peaks(self, axes, my_hist, ymax, label_xmin, label_xmax, height=0.5):
         # Draw a line at center of peak and put a text label indicating the x value
         for my_label in self.energy_labels:
-            if (int(my_label) < label_xmax) and (int(my_label) > label_xmin):
-                axes.axvline(x=int(my_label)+1, color='red', linestyle='--', ymin=0, ymax=0.75, lw=1)
-                axes.text(int(my_label), 20000, str(my_label), rotation=45, fontsize=self.label_font_size)
+            if (float(my_label) < label_xmax) and (float(my_label) > label_xmin):
+                axes.axvline(x=float(my_label), color='red', linestyle='--', ymin=0, ymax=0.75, lw=1)
+                axes.text(float(my_label), my_hist[round(float(my_label))], str(my_label), rotation=45, fontsize=self.label_font_size)
         return 0
 
     def sci_notation(self, number, sig_fig=0):
@@ -170,10 +179,9 @@ class hist_gen:
             plt.yscale("log")
 
         if self.fit_peak is True:
-            self.min_pulse_height = self.fit_peak_xmin
-            self.max_pulse_height = self.fit_peak_xmax
-            true_peak_center, best_fit, result_data, amplitude = self.peak_fitting(my_hist, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
-            print("Fix me... sometime..")
+            #self.min_pulse_height = self.fit_peak_xmin
+            #self.max_pulse_height = self.fit_peak_xmax
+            true_peak_center, best_fit, result_data, amplitude, fit_energy_axis = self.peak_fitting(my_hist, energy_axis, self.axes, self.fit_peak_xmin, self.fit_peak_xmax)
 
         self.graph_with_overlays(self.axes, energy_axis, my_hist, False)
 
@@ -199,14 +207,16 @@ class hist_gen:
                 self.label_peaks(sub_axes, my_hist, ymax_sub, self.zoom_xmin, self.zoom_xmax)
             if self.ylog_zoom is True:
                 plt.yscale("log")
-        self.axes.set_xlim([self.min_pulse_height, self.max_pulse_height])
-        if self.y_axis_max is None:
-            self.y_axis_max = my_hist[self.min_pulse_height:self.max_pulse_height].max() * 1.2
+#        self.axes.set_xlim([self.min_pulse_height, 301])
+        self.axes.set_xlim([self.min_pulse_height, self.xaxis_max])
+    #    if self.y_axis_max is None:
+    #        self.y_axis_max = my_hist[self.min_pulse_height:self.max_pulse_height].max() * 1.2
         print("Yaxis max", self.y_axis_max)
         self.axes.set_ylim([self.y_axis_min, self.y_axis_max])
         if self.ylog is False:
             self.axes.ticklabel_format(style='plain')
-        plt.legend(title='Parameters:', fontsize=self.label_font_size)
+        if self.legend:
+            plt.legend(title='Parameters:', fontsize=self.label_font_size)
         if self.output_filename is None:
             self.output_filename = self.input_filename + '.png'
         print("Saving graph as:", self.output_filename)
@@ -251,8 +261,12 @@ class hist_gen:
             if my_chan != 'summed_hist':  # Make sure we don't sum out summing column.. yup..
                 mydata_df['summed_hist'] = mydata_df[str(my_chan)] + mydata_df['summed_hist']
 
-        #energy_axis = np.linspace(0, len(mydata_df['summed_hist'].values) + 1, len(mydata_df['summed_hist'].values) + 1, dtype=int)
-        energy_axis = np.linspace(0, len(mydata_df['summed_hist'].values), len(mydata_df['summed_hist'].values), dtype=int)
+        energy_axis = np.linspace(0, self.xaxis_max, len(mydata_df['summed_hist'].values))
+        print("Energy Axis:", energy_axis)
+        print("Summed hist values:", mydata_df['summed_hist'].values)
+        #exit(0)
+        #energy_axis = np.linspace(0, len(mydata_df['summed_hist'].values), len(mydata_df['summed_hist'].values), dtype=int)
+
 #        my_hist = np.concatenate(([0], mydata_df['summed_hist'])) # If this is coming from GEANT4 there is no 0 bin
         my_hist = mydata_df['summed_hist']  # if it's coming from MIDAS there is a 0 bin
 

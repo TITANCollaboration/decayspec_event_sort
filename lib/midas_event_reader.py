@@ -145,14 +145,13 @@ class midas_events:
         return
 
     def read_midas_events(self, my_midas_file, myoutput, events):
-        #total_mdpp_events = 0
+        self.particle_hits = []
         for hit in tqdm(my_midas_file, unit=' Hits'):
             for bank_name, bank in hit.banks.items():
                 particle_hit = []
                 if bank_name == "MDPP":  # Check if this is an event from the MDPP16
                 #    total_events = total_events + 1
                     particle_hit = self.decode_raw_hit_event(mdpp16.read_all_bank_events, bank.data)
-
                 elif bank_name == "GRF4":  # Check if this is an event from the GRIF16
                     particle_hit = self.decode_raw_hit_event(grif16.read_all_bank_events, bank.data)
 

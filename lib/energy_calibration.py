@@ -68,16 +68,18 @@ class energy_calibration:
 
     def calibrate_hit(self, hit):
         # Performs a polynomial calibration onto an individual pulse height
-        #print("Hi: ", np.polyval(self.cal_dict[hit['chan']], hit['pulse_height']))
-        #print("\n")
-        #exit(0)
+
         if hit['chan'] in self.cal_dict.keys():
-            hit['pulse_height'] = round(np.polyval(self.cal_dict[hit['chan']], hit['pulse_height']))
+            #hit['pulse_height'] = round(np.polyval(self.cal_dict[hit['chan']], hit['pulse_height']))
+#            hit['pulse_height'] = np.polyval(self.cal_dict[hit['chan']], hit['pulse_height'])  # can handle n-dimentional calibration but slow
+            hit['pulse_height'] = self.cal_dict[hit['chan']][0]*hit['pulse_height'] + self.cal_dict[hit['chan']][1]
+            #print(hit['pulse_height'])
             if hit['pulse_height'] > 65536:
                 hit['pulse_height'] = 65536  # Overflow!
         return hit
 
     def calibrate_list(self, hit_list):
+        # 45sec for single at a time
         # Loop through all pulse heights to calibrate against
         print("Calibrating particle list...")
         for hit_pos in range(0, len(hit_list)):

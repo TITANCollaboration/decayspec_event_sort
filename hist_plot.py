@@ -59,7 +59,8 @@ def parse_and_run(args):
                       ylog_zoom=args.ylog_zoom,
                       overlay_multipliers=args.overlay_multipliers,
                       output_filename=args.output_filename,
-                      ylog=args.ylog)
+                      ylog=args.ylog,
+                      xaxis_max=args.xaxis_max)
 
     myhist.grapher(mydata_df, args.channels, sum_all)
     return
@@ -87,6 +88,8 @@ def main():
                         help="Max Pulse Height")
     parser.add_argument('--ymin', dest='y_axis_min', type=float, default=0, required=False,
                         help="Min Pulse Height")
+    parser.add_argument('--xaxis_max', dest='xaxis_max', type=int, default=65535, required=False,
+                        help="Max Pulse Height")
     parser.add_argument('--nbins', dest='bin_number', type=int, default=65535, required=False,
                         help="(deprecated)Number of bins, will default to the smaller of 1000 or max_pulse_height - min_pulse_height")
     parser.add_argument('--title', dest='plot_title', required=False, default=None,

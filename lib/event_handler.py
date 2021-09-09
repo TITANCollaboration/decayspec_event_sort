@@ -6,7 +6,7 @@ from lib.input_handler import input_handler
 from pprint import pprint
 
 class event_handler:
-    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file, ppg_data_file=None, ppg_value_range=None, max_pulse_height=2**16, min_bin=0, max_bin=2**16, num_of_bins=2**16):
+    def __init__(self, sort_type, event_length, event_extra_gap, max_hits_per_event, calibrate, cal_file, ppg_data_file=None, ppg_value_range=None, max_pulse_height=2**16, min_bin=0, max_bin=301.13627937, num_of_bins=2**16):
         self.sort_type = sort_type
         self.event_length = event_length
         self.event_extra_gap = event_extra_gap
@@ -114,16 +114,21 @@ class event_handler:
             if particle_hit['pulse_height'] < self.max_pulse_height:
                 if (self.ppg_value_range is not None):
                     if (particle_hit['ppg_value'] >= self.ppg_value_range[0]) and (particle_hit['ppg_value'] <= self.ppg_value_range[1]):
-                        print("This has not been extensively tested!")
+                        print("WARNING! This has not been extensively tested!")
                         ph_list_buffer[particle_hit['chan']].append(particle_hit['pulse_height'])
                 else:
                     ph_list_buffer[particle_hit['chan']].append(particle_hit['pulse_height'])
         # Now do np.histogram on each channel and sum the histograms I think
         for buffer_chan_key in ph_list_buffer.keys():
+            ph_list_buffer[buffer_chan_key].sort()
+            #print("LArgest value:", ph_list_buffer[buffer_chan_key][-1])
             if buffer_chan_key not in self.histo_data_dict.keys():
                 self.histo_data_dict[buffer_chan_key] = np.zeros(1) # Create an array of a single 0 if no data exists yet for the channel
-
-            self.histo_data_dict[buffer_chan_key] = np.histogram(ph_list_buffer[buffer_chan_key], bins=self.num_of_bins, range=(self.min_bin, self.max_bin))[0] + self.histo_data_dict[buffer_chan_key]
+        #    print("We get here..", ph_list_buffer[buffer_chan_key]
+            self.histo_data_dict[buffer_chan_key] = np.histogram(ph_list_buffer[buffer_chan_key],
+                                                                 bins=self.num_of_bins,
+                                                                 range=(self.min_bin, self.max_bin))[0] + self.histo_data_dict[buffer_chan_key]
+        #print(self.histo_data_dict[buffer_chan_key])
         return
 
     """def histo_sorter(self, particle_hit_list):

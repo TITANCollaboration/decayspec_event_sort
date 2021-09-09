@@ -94,10 +94,13 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
     # Set values to object to return, remember we are using a prefix of +100 for MDPP16 channel addressing
     if (low_ts != -1) and (high_ts != -1):
         timestamp = low_ts + (high_ts*2**30)
+    elif high_ts == -1:
+        timestamp = low_ts
 
     if show_event is True:
         print("   ----Event----")
         print("     Sig : %i,  Sub: %i, Channel : %i, - trigChan: %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, sub_header, chan, trigchan, adc_value, tdc_value))
+    #print("Timestamp:", timestamp, "Low:", low_ts, "High:", high_ts)
     if timestamp != -1:
         return myparticle_events, timestamp, event_count
     else:
