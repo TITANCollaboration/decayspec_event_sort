@@ -83,6 +83,10 @@ nudat_form = html.Div([html.Form([
                                 action='https://www.nndc.bnl.gov/nudat2/decaysearchdirect.jsp',
                                 target="_blank", method='post')])
 
+graph_title_form = html.Div([
+                            dcc.Input(id='graph_title', type="text", style={'width':'200px'}, placeholder="Graph Title")])
+
+
 channel_selections_from_hist = html.Div()
 
 channel_selections_from_daqs = html.Div([
@@ -202,7 +206,9 @@ app.layout = html.Div([
                                  children=[
                                            tabbed_modes,
                                            html.Hr(),
-                                           graph_controls])]),
+                                           graph_controls,
+                                           html.Hr(),
+                                           graph_title_form])]),
     html.Div(dcc.Interval(id='temporal-hist-interval-component', interval=999999999)),
     html.Div(dcc.Interval(id='interval-component', interval=999999999)),
     html.Div([html.Button('Fit Peak', id='fit-peak-button', value=None, n_clicks=0),
@@ -301,7 +307,7 @@ def zoom_event(relayoutData):
         if 'xaxis.range[0]' in relayoutData.keys() and (relayoutData['yaxis.range[0]'] < 0):
             relayoutData['yaxis.range[0]'] = 0
         if 'xaxis.range[0]' in relayoutData.keys():
-            return int(relayoutData['xaxis.range[0]']), int(relayoutData['xaxis.range[1]']), int(relayoutData['yaxis.range[0]']), int(relayoutData['yaxis.range[1]'])
+            return int(relayoutData['xaxis.range[0]']),         int(relayoutData['xaxis.range[1]']), int(relayoutData['yaxis.range[0]']), int(relayoutData['yaxis.range[1]'])
     return 0, 0, 0, 0
 
 
@@ -391,18 +397,19 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
     Input({'type': 'fit_chan_radio', 'index': ALL}, 'value'),
     Input('hist_graph_display', 'clickData'),
     Input('channel_list_with_info', 'children'),
+    Input('graph_title', 'value'),
     State('peak_fit_first_point', 'data'),
     State('hist_filename', 'data'),
     State('tab-mode-selection', 'data'),
 
     )
-def process_static_hist(n_intervals, yaxis_type, xmin, xmax, ymin, ymax, unzoom, hist_available_channel_list, fit_peak_button, fit_peak_button_value, fit_chan_radio_value, click_data, channel_list_with_info, stored_data, stored_hist_filename, tab_mode_selection, ):
+def process_static_hist(n_intervals, yaxis_type, xmin, xmax, ymin, ymax, unzoom, hist_available_channel_list, fit_peak_button, fit_peak_button_value, fit_chan_radio_value, click_data, channel_list_with_info, graph_title, stored_data, stored_hist_filename, tab_mode_selection, ):
     if fit_chan_radio_value:
         fit_peak_button_value = fit_chan_radio_value[0]
     else:
         fit_peak_button_value = None
     triggered = [t["prop_id"] for t in dash.callback_context.triggered]
-
+    print("Graph Title!!:", graph_title)
     print("Triggerd:", triggered)
     update_interval = 9999999999  # Set this to a long period of time assuming we're in offline mode, change it only when we are definitly in online mode with channels selected.
 
@@ -435,7 +442,7 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, ymin, ymax, unzoom,
             xmax = len(mydata_df.index)
             ymin = 0
             ymax = mydata_df[channels_to_display[0]].max() + mydata_df[channels_to_display[0]].max() * .05
-        fig_hist, energy_axis = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymin, ymax, stored_hist_filename, tab_mode_selection)
+        fig_hist, energy_axis = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymin, ymax, stored_hist_filename, tab_mode_selection, graph_title)
         channel_list_with_info = generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display, fit_peak_button_value)
         fig_hist.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
         fig_hist.update_layout(hovermode='x')  # This gives a little box with info when hovering over data
@@ -567,9 +574,13 @@ def draw_fit_annotations_from_file(fig_hist, hist_filename, channel, yaxis_type)
     return fig_hist
 
 
-def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymin, ymax, hist_filenames, tab_mode_selection):
+def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymin, ymax, hist_filenames, tab_mode_selection, graph_title):
     # !! Need to check that all the channels exist as columns in the DF and remove those that don't
     calibration_found = False
+    my_graph_title = ""
+    if graph_title is not None:
+        my_graph_title = graph_title
+
     for channel in channels_to_display:
         if channel not in mydata_df.columns:
             channels_to_display.remove(channel)
@@ -584,6 +595,7 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymi
         x_axis_label = "Energy (keV)"
 
     fig_hist = px.line(x=energy_axis, y=mydata_df[channels_to_display[0]],
+                       title=my_graph_title,
                        line_shape='hv',
                        render_mode='webgl',
                        height=900,
