@@ -59,3 +59,33 @@ body { background-color: #4C4C4C;
 .grid-item2 {
     grid-column: 2;
 }
+
+.container {
+    display: flex;
+    flex-direction: column;
+}
+
+.container__main {
+    /* Take the remaining height */
+    flex-grow: 1;
+
+    /* Layout the left sidebar, main content and right sidebar */
+    display: flex;
+    flex-direction: row;
+}
+
+.container__left {
+    width: 25%;
+}
+
+.container__middle {
+    /* Take the remaining width */
+    flex-grow: 1;
+}
+
+.container__right {
+  border-left: 2px solid gray;
+  padding-left: 4px;
+  border-left-style: groove;
+    width: 10%;
+}

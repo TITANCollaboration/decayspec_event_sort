@@ -8,6 +8,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL, MATCH
 from random import randrange
 import plotly.express as px
@@ -28,6 +29,10 @@ from lib.energy_calibration import energy_calibration
 #from lib.radware_fit import radware_fit
 
 app = dash.Dash(__name__)
+#app = dash.Dash(
+#    external_stylesheets=[dbc.themes.CYBORG]
+#)
+
 app.config.suppress_callback_exceptions = True
 
 tabs_styles = {
@@ -104,8 +109,8 @@ channel_selections_from_daqs = html.Div([
                         ], style=dict(display='flex'))
 
 tabbed_modes = html.Div([dcc.Tabs(id='mode-tabs', value='offline-analysis', children=[
-                         dcc.Tab(label='Offline Analysis', value='offline-analysis', style=tab_style, selected_style=tab_selected_style),
-                         dcc.Tab(label='Online Analysis', value='online-analysis', style=tab_style, selected_style=tab_selected_style),
+                         dcc.Tab(label='Offline', value='offline-analysis', style=tab_style, selected_style=tab_selected_style),
+                         dcc.Tab(label='Online', value='online-analysis', style=tab_style, selected_style=tab_selected_style),
                          ], style=tabs_styles)])
 
 offline_tab_content = html.Div([html.Div(className='clear'),
@@ -123,41 +128,81 @@ online_tab_content = html.Div([
 header = html.Header([html.Span('GammaGraph', style={'float': 'left'}),
                       html.Span(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"), style={'float': 'right'}),
                       html.Div(className='clear')], className='header')
-graph_controls = html.Div([
-                html.Label(['Y-Axis :',
+
+ #html.Div(className="container__right", children=[
+graph_controls = html.Div(children=[html.Label(['Y-Axis :',
                     dcc.RadioItems(
                             id='yaxis-type',
                             options=[{'label': axis_type_select, 'value': axis_type_select} for axis_type_select in ['Linear', 'Log']],
                             value='Linear',
                             )
                 ], style=dict(display='flex')),
+                html.Hr(),
                 html.Label(['xmin ',
                     dcc.Input(
                         id="xmin", type="number",
-                        debounce=True, value=0)
+                        debounce=True, value=0, style={'width':'65px'})
                 ]),
+                html.Br(),
                 html.Label(['xmax ',
                     dcc.Input(
                         id="xmax", type="number",
-                        debounce=True, value=20000)
+                        debounce=True, style={'width':'65px'})
                 ]),
+                html.Hr(),
+#                html.Br(),
+                html.Label(['ymin ',
+                    dcc.Input(
+                        id="ymin", type="number", min=0,
+                        debounce=True, value=0, style={'width':'65px'})
+                ]),
+                html.Br(),
+                html.Label(['ymax ',
+                    dcc.Input(
+                        id="ymax", type="number",
+                        debounce=True, style={'width':'65px'})
+                ]),
+                html.Br(),
+                html.Hr(),
                 html.Button('Unzoom', id='unzoom-graph', n_clicks=0),
                 ])
 app.title = 'GammaGraph'
 
+plotly_graph_settings = {'displaylogo': False,
+                         'toImageButtonOptions': {
+                                'format': 'png', # one of png, svg, jpeg, webp
+                                'filename': 'custom_image',
+                                'height': 1080,
+                                'width': 1440,
+                                'scale': 2.5 # Multiply title/legend/axis/canvas sizes by this factor
+                                },
+                         'modeBarButtonsToAdd': ['drawline',
+                                                 'drawopenpath',
+                                                 'drawclosedpath',
+                                                 'drawcircle',
+                                                 'drawrect',
+                                                 'eraseshape']
+                        }
+
 app.layout = html.Div([
     header,
     nudat_form,
+    #graph_controls,
     html.Hr(),
-    graph_controls,
-    html.Hr(),
-    tabbed_modes,
+    #tabbed_modes,
     dcc.Store(id='tab-mode-selection'),
     dcc.Store(id='hist_filename'),
     dcc.Store(id='graphing_online_ph_vs_time'),
     html.Div(id='tabs-content-inline'),
     html.Hr(),
-    html.Div([dcc.Graph(id='hist_graph_display')]),
+    html.Main(className="container__main",
+              children=[
+                        html.Div(dcc.Graph(id='hist_graph_display', config=plotly_graph_settings), className="container__middle"),
+                        html.Div(className="container__right",
+                                 children=[
+                                           tabbed_modes,
+                                           html.Hr(),
+                                           graph_controls])]),
     html.Div(dcc.Interval(id='temporal-hist-interval-component', interval=999999999)),
     html.Div(dcc.Interval(id='interval-component', interval=999999999)),
     html.Div([html.Button('Fit Peak', id='fit-peak-button', value=None, n_clicks=0),
@@ -240,20 +285,24 @@ def online_temporal_histogram(temporal_hist_interval_component, temporal_hist_in
 @app.callback(
     Output('xmin', 'value'),
     Output('xmax', 'value'),
+    Output('ymin', 'value'),
+    Output('ymax', 'value'),
     Input('hist_graph_display', 'relayoutData'))
 def zoom_event(relayoutData):
-    #print(relayoutData)
+    print(relayoutData)
     if relayoutData is None:
         raise dash.exceptions.PreventUpdate
 
     if 'xaxis.autorange' in relayoutData.keys():
         print("Do something, we're zoomed out..")
-        return 0, 20000
+        return 0, 0, 0, 0
 
     else:
+        if 'xaxis.range[0]' in relayoutData.keys() and (relayoutData['yaxis.range[0]'] < 0):
+            relayoutData['yaxis.range[0]'] = 0
         if 'xaxis.range[0]' in relayoutData.keys():
-            return int(relayoutData['xaxis.range[0]']), int(relayoutData['xaxis.range[1]'])
-    return 0, 20000
+            return int(relayoutData['xaxis.range[0]']), int(relayoutData['xaxis.range[1]']), int(relayoutData['yaxis.range[0]']), int(relayoutData['yaxis.range[1]'])
+    return 0, 0, 0, 0
 
 
 @app.callback(
@@ -333,6 +382,8 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
     Input('yaxis-type', 'value'),
     Input("xmin", "value"),
     Input("xmax", "value"),
+    Input("ymin", "value"),
+    Input("ymax", "value"),
     Input("unzoom-graph", 'n_clicks'),
     Input({'type': 'selected_chan_dropdown', 'index': ALL}, 'value'),
     Input('fit-peak-button', 'n_clicks'),
@@ -345,7 +396,7 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
     State('tab-mode-selection', 'data'),
 
     )
-def process_static_hist(n_intervals, yaxis_type, xmin, xmax, unzoom, hist_available_channel_list, fit_peak_button, fit_peak_button_value, fit_chan_radio_value, click_data, channel_list_with_info, stored_data, stored_hist_filename, tab_mode_selection, ):
+def process_static_hist(n_intervals, yaxis_type, xmin, xmax, ymin, ymax, unzoom, hist_available_channel_list, fit_peak_button, fit_peak_button_value, fit_chan_radio_value, click_data, channel_list_with_info, stored_data, stored_hist_filename, tab_mode_selection, ):
     if fit_chan_radio_value:
         fit_peak_button_value = fit_chan_radio_value[0]
     else:
@@ -382,7 +433,9 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, unzoom, hist_availa
         if changed_id == "unzoom-graph.n_clicks":
             xmin = 0
             xmax = len(mydata_df.index)
-        fig_hist, energy_axis = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, stored_hist_filename)
+            ymin = 0
+            ymax = mydata_df[channels_to_display[0]].max() + mydata_df[channels_to_display[0]].max() * .05
+        fig_hist, energy_axis = create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymin, ymax, stored_hist_filename, tab_mode_selection)
         channel_list_with_info = generate_channel_list_with_info(mydata_df, tab_mode_selection, channels_to_display, fit_peak_button_value)
         fig_hist.update_layout(clickmode="none")  #  Disable line based selection on graph unless driven by event
         fig_hist.update_layout(hovermode='x')  # This gives a little box with info when hovering over data
@@ -470,6 +523,7 @@ def create_temporal_hist():
 
 
 def generate_energy_axis(mydata_df, channel, hist_filename):
+    calibration_found = False
     cal_file = './hists/' + str(Path(hist_filename).stem) + '.cal'
     print("Cal file:", cal_file)
     bin_num = mydata_df[channel].count()
@@ -480,11 +534,11 @@ def generate_energy_axis(mydata_df, channel, hist_filename):
         first_channel = int(channel.split('_')[-1])
         max_x_value = (bin_num * my_energy_calibration.cal_dict[first_channel][0]) + my_energy_calibration.cal_dict[first_channel][1]
         energy_axis = np.linspace(0, max_x_value, bin_num)
-        print(energy_axis)
+        calibration_found = True
     else:
         max_x_value = bin_num
         energy_axis = np.linspace(0, bin_num, bin_num)
-    return energy_axis, max_x_value
+    return energy_axis, max_x_value, calibration_found
 
 
 def draw_fit_annotations_from_file(fig_hist, hist_filename, channel, yaxis_type):
@@ -513,27 +567,42 @@ def draw_fit_annotations_from_file(fig_hist, hist_filename, channel, yaxis_type)
     return fig_hist
 
 
-def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, hist_filenames):
+def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymin, ymax, hist_filenames, tab_mode_selection):
     # !! Need to check that all the channels exist as columns in the DF and remove those that don't
+    calibration_found = False
     for channel in channels_to_display:
         if channel not in mydata_df.columns:
             channels_to_display.remove(channel)
-    energy_axis, max_x_value = generate_energy_axis(mydata_df, channels_to_display[0], hist_filenames[0])
+    if tab_mode_selection == 'offline-analysis':
+        energy_axis, max_x_value, calibration_found = generate_energy_axis(mydata_df, channels_to_display[0], hist_filenames[0])
+    else:
+        bin_num = mydata_df[channels_to_display[0]].count()
+        energy_axis = np.linspace(0, bin_num, bin_num)
+        max_x_value = bin_num
+    x_axis_label = "Pulse Height"
+    if calibration_found is True:
+        x_axis_label = "Energy (keV)"
 
     fig_hist = px.line(x=energy_axis, y=mydata_df[channels_to_display[0]],
                        line_shape='hv',
                        render_mode='webgl',
-                       height=800,
+                       height=900,
                        log_y=True,
-                       labels={'x': "Pulse Height", 'y': "Counts"},
+                       labels={'x': x_axis_label, 'y': "Counts"},
                        )
     if xmax > max_x_value:  # Ensure we don't draw a crazy axis initially
         xmax = max_x_value
+    print("MY YMax Value:", ymax)
+    if xmax == 0:
+        xmax = max_x_value
     fig_hist.update_xaxes(range=[xmin, xmax])
+    if ymax > 0:
+        fig_hist.update_yaxes(range=[ymin, ymax])
+
     fig_hist.update_layout(
         title={
-            'text': "Ba133 - Calibrated - LEGe",
-            'y':0.9,
+            #'text': "Ba133 - Calibrated - LEGe",
+            'y':1,
             'x':0.5,
             'xanchor': 'center',
             'yanchor': 'top'})
@@ -548,7 +617,8 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, his
                            paper_bgcolor='rgba(0, 0, 0, 0)',
                            font_color='white')
     fig_hist.update_yaxes(type='linear' if yaxis_type == 'Linear' else 'log')
-    fig_hist = draw_fit_annotations_from_file(fig_hist, hist_filenames[0], channels_to_display[0], yaxis_type)
+    if tab_mode_selection == 'offline-analysis':
+        fig_hist = draw_fit_annotations_from_file(fig_hist, hist_filenames[0], channels_to_display[0], yaxis_type)
 
     return fig_hist, energy_axis
 
