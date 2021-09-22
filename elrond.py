@@ -8,7 +8,6 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL, MATCH
 from random import randrange
 import plotly.express as px
@@ -29,9 +28,6 @@ from lib.energy_calibration import energy_calibration
 #from lib.radware_fit import radware_fit
 
 app = dash.Dash(__name__)
-#app = dash.Dash(
-#    external_stylesheets=[dbc.themes.CYBORG]
-#)
 
 app.config.suppress_callback_exceptions = True
 
@@ -180,12 +176,6 @@ plotly_graph_settings = {'displaylogo': False,
                                 'width': 1440,
                                 'scale': 2.5 # Multiply title/legend/axis/canvas sizes by this factor
                                 },
-                         'modeBarButtonsToAdd': ['drawline',
-                                                 'drawopenpath',
-                                                 'drawclosedpath',
-                                                 'drawcircle',
-                                                 'drawrect',
-                                                 'eraseshape']
                         }
 
 app.layout = html.Div([
@@ -293,22 +283,24 @@ def online_temporal_histogram(temporal_hist_interval_component, temporal_hist_in
     Output('xmax', 'value'),
     Output('ymin', 'value'),
     Output('ymax', 'value'),
+    #Output('hist_relay_data', 'relayoutData'),
     Input('hist_graph_display', 'relayoutData'))
 def zoom_event(relayoutData):
-    print(relayoutData)
-    if relayoutData is None:
+    print("relayoutData", relayoutData)
+    if relayoutData is None or ('dragmode' in relayoutData.keys()):
+        print("We're getting to the exception!!")
         raise dash.exceptions.PreventUpdate
 
     if 'xaxis.autorange' in relayoutData.keys():
         print("Do something, we're zoomed out..")
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0 # , []
 
     else:
         if 'xaxis.range[0]' in relayoutData.keys() and (relayoutData['yaxis.range[0]'] < 0):
             relayoutData['yaxis.range[0]'] = 0
         if 'xaxis.range[0]' in relayoutData.keys():
-            return int(relayoutData['xaxis.range[0]']),         int(relayoutData['xaxis.range[1]']), int(relayoutData['yaxis.range[0]']), int(relayoutData['yaxis.range[1]'])
-    return 0, 0, 0, 0
+            return int(relayoutData['xaxis.range[0]']), int(relayoutData['xaxis.range[1]']), int(relayoutData['yaxis.range[0]']), int(relayoutData['yaxis.range[1]']) # , []
+    return 0, 0, 0, 0 # , []
 
 
 @app.callback(
@@ -398,12 +390,16 @@ def set_static_hist_filename_w_chan_selection(hist_file_selection, hist_availabl
     Input('hist_graph_display', 'clickData'),
     Input('channel_list_with_info', 'children'),
     Input('graph_title', 'value'),
+#    Input('hist_relay_data', 'relayoutData'),
     State('peak_fit_first_point', 'data'),
     State('hist_filename', 'data'),
     State('tab-mode-selection', 'data'),
 
     )
-def process_static_hist(n_intervals, yaxis_type, xmin, xmax, ymin, ymax, unzoom, hist_available_channel_list, fit_peak_button, fit_peak_button_value, fit_chan_radio_value, click_data, channel_list_with_info, graph_title, stored_data, stored_hist_filename, tab_mode_selection, ):
+def process_static_hist(n_intervals, yaxis_type, xmin, xmax, ymin, ymax, unzoom, hist_available_channel_list, fit_peak_button, fit_peak_button_value, fit_chan_radio_value, hist_graph_click_data, channel_list_with_info, graph_title, stored_data, stored_hist_filename, tab_mode_selection, ):
+    print("hist_graph_display:", hist_graph_click_data)
+    print("dash.callback_context:", dash.callback_context)
+    #print("hist_relay_data:", hist_relay_data)
     if fit_chan_radio_value:
         fit_peak_button_value = fit_chan_radio_value[0]
     else:
@@ -451,9 +447,9 @@ def process_static_hist(n_intervals, yaxis_type, xmin, xmax, ymin, ymax, unzoom,
 
     if fit_peak_button == 1:
         #  !!Currently I'm only caring about one channel, need to have that be selectable!
-        stored_data, fig_hist, update_interval, fit_peak_button, click_data = fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, fit_peak_button_value, energy_axis, stored_hist_filename)
+        stored_data, fig_hist, update_interval, fit_peak_button, hist_graph_click_data = fit_peak_button_mode(hist_graph_click_data, stored_data, fig_hist, mydata_df, fit_peak_button_value, energy_axis, stored_hist_filename)
 
-    return fig_hist, stored_data, update_interval, fit_peak_button, click_data, channel_list_with_info, fit_peak_button_value
+    return fig_hist, stored_data, update_interval, fit_peak_button, hist_graph_click_data, channel_list_with_info, fit_peak_button_value
 
 
 @app.callback(Output('output-data-upload', 'children'),
@@ -580,7 +576,6 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymi
     my_graph_title = ""
     if graph_title is not None:
         my_graph_title = graph_title
-
     for channel in channels_to_display:
         if channel not in mydata_df.columns:
             channels_to_display.remove(channel)
@@ -593,15 +588,21 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymi
     x_axis_label = "Pulse Height"
     if calibration_found is True:
         x_axis_label = "Energy (keV)"
-
-    fig_hist = px.line(x=energy_axis, y=mydata_df[channels_to_display[0]],
+        
+    tmp_hists_to_display = []
+    for my_channel in channels_to_display:  # Need to put all the y axis stuff into one list to pass to px.line
+        tmp_hists_to_display.append(mydata_df[my_channel])
+    fig_hist = px.line(x=energy_axis, y=tmp_hists_to_display,
                        title=my_graph_title,
                        line_shape='hv',
                        render_mode='webgl',
                        height=900,
                        log_y=True,
                        labels={'x': x_axis_label, 'y': "Counts"},
-                       )
+                      )
+    for my_channel in enumerate(channels_to_display):  # this is to rename the Channels labels properly
+        fig_hist.data[my_channel[0]].name = str(my_channel[1])
+
     if xmax > max_x_value:  # Ensure we don't draw a crazy axis initially
         xmax = max_x_value
     print("MY YMax Value:", ymax)
@@ -635,7 +636,7 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymi
     return fig_hist, energy_axis
 
 
-def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel, energy_axis, hist_filenames):
+def fit_peak_button_mode(hist_graph_click_data, stored_data, fig_hist, mydata_df, channel, energy_axis, hist_filenames):
     fit_file_name = './hists/' + str(Path(hist_filenames[0]).stem) + '.fit'  # Set filename to save peak fittings to
     fig_hist.update_layout(hovermode='x unified',
                            legend=dict(title=None),
@@ -647,8 +648,8 @@ def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel, 
     fit_peak_button = 1
     update_interval = 9999999999
 
-    if click_data is not None:
-        clicked_x_value = click_data['points'][0]['x']
+    if hist_graph_click_data is not None:
+        clicked_x_value = hist_graph_click_data['points'][0]['x']
         if (stored_data is not None) and (stored_data['fit_first_index'] is not None):#('fit_first_index' in stored_data.keys()):
             fit_min_x = stored_data['fit_first_index']
             fit_max_x = clicked_x_value
@@ -685,13 +686,13 @@ def fit_peak_button_mode(click_data, stored_data, fig_hist, mydata_df, channel, 
             fig_hist.update_layout(hovermode='x')
             stored_data['fit_first_index'] = None
             fit_peak_button = 0
-            click_data = None
+            hist_graph_click_data = None
         else:
             stored_data = {'fit_first_index': clicked_x_value}
         #if fit_peak_button = 0:
             fig_hist.add_vline(x=clicked_x_value, line_width=3, line_dash="dash", line_color="green")
 
-    return stored_data, fig_hist, update_interval, fit_peak_button, click_data
+    return stored_data, fig_hist, update_interval, fit_peak_button, hist_graph_click_data
 
 
 def remote_online_df(channels_to_display, type):
