@@ -130,7 +130,7 @@ header = html.Header([html.Span('GammaGraph', style={'float': 'left'}),
                       html.Div(className='clear')], className='header')
 
  #html.Div(className="container__right", children=[
-graph_controls = html.Div(children=[html.Label(['Y-Axis :',
+graph_controls = html.Div(children=[html.Label(['Y-Axis:',
                     dcc.RadioItems(
                             id='yaxis-type',
                             options=[{'label': axis_type_select, 'value': axis_type_select} for axis_type_select in ['Linear', 'Log']],
@@ -260,18 +260,26 @@ def online_temporal_histogram(temporal_hist_interval_component, temporal_hist_in
                 temporal_hist_interval_time = 999999999
                 temporal_graph_children[0] = [html.Button('PH v. Time', id={'type': 'pulse_height_vs_time', 'index': 'pulse_height_vs_time'}, n_clicks=0)]
                 return_figure_data = False
-                online_ph_v_time_hist_graph = [create_temporal_hist()] # Need to append a graph one more time before the dcc.graph element goes away
+                online_ph_v_time_hist_graph = [create_2d_temporal_hist()] # Need to append a graph one more time before the dcc.graph element goes away
+                online_ph_v_time_sum_hist_graph = [create_2d_sum_temporal_hist()]
+
             else:  # We should be graphing here..
-                online_ph_v_time_hist_graph = create_temporal_hist()  # Get initial graphing data
-                temporal_graph_children[0].append(dcc.Graph(id={'type': 'online_ph_v_time_hist_graph', 'index': 'online_ph_v_time_hist_graph_index'}, figure=online_ph_v_time_hist_graph))
-                temporal_hist_interval_time = 5*1000
+                online_ph_v_time_hist_graph = create_2d_temporal_hist()  # Get initial graphing data
+                online_ph_v_time_sum_hist_graph = create_2d_sum_temporal_hist()
+                temporal_graph_children[0].append(dcc.Graph(id={'type':
+                                                  'online_ph_v_time_hist_graph', 'index': 'online_ph_v_time_hist_graph_index'}, figure=online_ph_v_time_hist_graph))
+
+                temporal_graph_children[0].append(dcc.Graph(id={'type':
+                                                  'online_ph_v_time_sum_hist_graph', 'index': 'online_ph_v_time_sum_hist_graph_index'}, figure=online_ph_v_time_sum_hist_graph))
+                temporal_hist_interval_time = 3*1000  # Update every 3 seconds
                 return_figure_data = False
         else:
             pulse_height_vs_time_n_clicks_output = pulse_height_vs_time_nclicks
 
     if graphing_online_ph_vs_time_data is True:  # Check if we've set stuff and need to handle this differently
         if return_figure_data is True:
-            online_ph_v_time_hist_graph = [create_temporal_hist()]
+            online_ph_v_time_hist_graph = [create_2d_temporal_hist()]
+            online_ph_v_time_sum_hist_graph = [create_2d_sum_temporal_hist()]
         else:
             online_ph_v_time_hist_graph = []
 
@@ -511,17 +519,18 @@ def get_hist_files_avail():
     return file_list_options
 
 
-def create_temporal_hist():
+def create_2d_sum_temporal_hist():
+    myrequests = online_analyzer_requests()
+    mydata_df, status = myrequests.fetch_remote_2d_sum_hist()
+    fig_time_sum_hist = px.line(mydata_df['hist_sum'])
+    return fig_time_sum_hist
+
+
+def create_2d_temporal_hist():
     myrequests = online_analyzer_requests()
     mydata_df, status = myrequests.fetch_remote_2d_hist()
-#    print(len(mydata_df['hist']))
     numpy_2d_array = np.vstack(mydata_df['hist'])
-    print("!!Got to Create Temporal Histogram!!")
-    img_rgb = np.array([[[randrange(0, 255), 0, 0], [0, randrange(0, 255), 0], [0, 0, 255]],
-                    [[0, 255, 0], [0, 0, 255], [randrange(0, 255), 0, 0]]
-                   ], dtype=np.uint8)
     fig_time_hist = px.imshow(numpy_2d_array)
-    #fig_time_hist = px.imshow(mydata_df)
     return fig_time_hist
 
 
@@ -588,7 +597,7 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymi
     x_axis_label = "Pulse Height"
     if calibration_found is True:
         x_axis_label = "Energy (keV)"
-        
+
     tmp_hists_to_display = []
     for my_channel in channels_to_display:  # Need to put all the y axis stuff into one list to pass to px.line
         tmp_hists_to_display.append(mydata_df[my_channel])
@@ -626,6 +635,12 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymi
                             xaxis_showgrid=False, yaxis_showgrid=False,
                             font=dict(size=18)
                             )
+    # Move the legend to within the graph boundaries to get more graph space
+    fig_hist.update_layout(legend=dict(
+                                       yanchor="top",
+                                       xanchor="right",
+                                       ))
+
     fig_hist.update_layout(plot_bgcolor='rgba(0, 0, 0, 0)',
                            paper_bgcolor='rgba(0, 0, 0, 0)',
                            font_color='white')
