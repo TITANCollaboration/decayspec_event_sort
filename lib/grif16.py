@@ -60,7 +60,7 @@ def read_all_bank_events(bank_data, bin_div):
                     integration_length = ((bank_data[data_pos] & 0x7FC00000) >> 22) + integration_length
 
     integrated_pulse_height = 0
-    if ((integration_length == 700) or (integration_length == 512)):  #  Switch over to integration of 700 only, drop 512 out
+    if (integration_length != 0):  #  Switch over to integration of 700 only, drop 512 out
         # I don't know why this has to be 700, it was chosen by the GRIFFIN group and they throw out anything that doesn't come out as 700 so...
         # Also some of our old data had an integration time scale of 512 so I need this to compensate for those, will be able to get rid of this soon.
         integrated_pulse_height = pulse_height / integration_length
@@ -70,6 +70,6 @@ def read_all_bank_events(bank_data, bin_div):
         myparticle_event = {"timestamp": timestamp, "chan": (chan + GRIF16_CHAN_PREFIX), "pulse_height": round(integrated_pulse_height), "flags": pileup}
             #print("TimeStamp %i   -  Pulse Height %i" % (timestamp, integrated_pulse_height))
         particle_events.append(myparticle_event)
-
+    #print("Integration Length", integration_length)
     # print("Pileup : %i   -   Time stamp : %i" % (pileup, timestamp))
     return particle_events

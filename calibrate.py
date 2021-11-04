@@ -39,7 +39,7 @@ def parse_and_run(args):
     else:
         my_midas.read_midas_files()
 
-    print(my_midas.histo_dict)
+    #print(my_midas.histo_dict)
     if args.cal_type == 'linear':
         energy_cal.perform_fit(my_midas.histo_dict, 'linear', args.cal_output_file)
     elif args.cal_type == 'quad':

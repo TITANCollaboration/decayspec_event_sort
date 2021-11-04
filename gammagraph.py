@@ -607,7 +607,7 @@ def create_histogram(mydata_df, channels_to_display, yaxis_type, xmin, xmax, ymi
                        render_mode='webgl',
                        height=900,
                        log_y=True,
-                       labels={'x': x_axis_label, 'y': "Counts"},
+                       labels={'x': x_axis_label, 'value': "Counts"},
                       )
     for my_channel in enumerate(channels_to_display):  # this is to rename the Channels labels properly
         fig_hist.data[my_channel[0]].name = str(my_channel[1])

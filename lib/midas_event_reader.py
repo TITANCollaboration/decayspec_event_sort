@@ -10,6 +10,8 @@ from multiprocessing import Process, Queue, SimpleQueue, active_children
 from time import sleep
 from lib.output_handler import output_handler
 import importlib
+from pprint import pprint
+
 
 class midas_events:
 
@@ -94,6 +96,7 @@ class midas_events:
             energy_cal = energy_calibration(self.cal_file)
             #particle_event_list = energy_cal.calibrate_histograms(particle_event_list)
             self.histo_dict = particle_event_list
+            #pprint(sum(particle_event_list[1]))
         if self.write_events_to_file is True:
             myoutput.write_events(particle_event_list)
         return []

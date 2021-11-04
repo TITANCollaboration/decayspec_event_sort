@@ -116,6 +116,7 @@ class energy_calibration:
         chan_hist = hist_list[index]
         tallest_peak = np.amax(chan_hist['hist'])
         tallest_peak_index = np.where(chan_hist['hist'] == tallest_peak)[0][0]  # ONly care about peaks to the right of this for both co60 and eu152
+        print("Tallest peak index:", tallest_peak_index)
         prominence = tallest_peak * peak_finder_dict['prominence_fraction_of_tallest_peak']
         peak_indexes, peak_properties = scipy.signal.find_peaks(chan_hist['hist'],
                                                                 height=peak_finder_dict['min_height'],
@@ -136,7 +137,7 @@ class energy_calibration:
             exit(1)
         peak_info = []
         for my_peak_index in range(tallest_peak_index_in_found_peaks, len(peak_indexes)):
-            print("My Peak Index:", my_peak_index)
+            #print("My Peak Index:", my_peak_index)
 
             peak_info.append({'est_peak_center': peak_indexes[my_peak_index],
                               'est_peak_width': peak_properties['widths'][my_peak_index],
@@ -145,7 +146,7 @@ class energy_calibration:
                               'fit_peak_fwhm': None,
                               'full_fit_results': None})
         hist_list[index].update({'peak_info': peak_info})
-        print(hist_list)
+        #print(hist_list)
         return
 
     def find_peak_centroid(self, hist_list, peak_info_label, index):
@@ -153,7 +154,7 @@ class energy_calibration:
         chan_hist = hist_list[index]
         x_vals = np.linspace(1, len(chan_hist['hist']), len(chan_hist['hist']))
         # We need even bins, if you don't use this you get crazy bins, no one wants crazy bins.
-        print(chan_hist['chan'])
+        #print(chan_hist['chan'])
         for my_peak_index in range(len(chan_hist[peak_info_label])):
             my_peak = hist_list[index][peak_info_label][my_peak_index]
             #x_vals_around_peak = np.linspace(my_peak['est_peak_center'] - 50, my_peak['est_peak_center'] + 50, 100)
@@ -163,8 +164,8 @@ class energy_calibration:
             hist_list[index][peak_info_label][my_peak_index]['fit_peak_fwhm'] = result.params['fwhm'].value
             hist_list[index][peak_info_label][my_peak_index]['full_fit_results'] = result
 
-            print("Center :", result.params['center'].value, "FWHM :", result.params['fwhm'].value)
-            print(result.fit_report())
+            print("Center :", result.params['center'].value, "FWHM (bins) :", result.params['fwhm'].value)
+            #print(result.fit_report())
         return
 
     def find_poly_fit(self, hist_list, energy_vals, linear_output_file, index, degree, OVERWRITE=True):
@@ -187,11 +188,12 @@ class energy_calibration:
 
         co60_peak_finder_dict = {'prominence_fraction_of_tallest_peak': 1/3,
                                  'min_height': 100,
-                                 'min_width': 3,
+                                 'min_width': 2,
                                  'min_distance_between': 5,
                                  'num_peaks_needed': 2}
 
         for chan_dict_key in histograms.keys():
+            print("Running for channel:", chan_dict_key)
             if sum(histograms[chan_dict_key]) > 10000:
                 if fit_type == 'quad':
                     self.eu152_hist_list.append({'chan': chan_dict_key, 'hist': histograms[chan_dict_key]})
@@ -205,7 +207,14 @@ class energy_calibration:
                     self.find_peaks(index, self.co60_hist_list, co60_peak_finder_dict)
                     self.find_peak_centroid(self.co60_hist_list, 'peak_info', index)  # Grabbing more of the peak base by *2
                     self.find_poly_fit(self.co60_hist_list, self.co60_energy_vals, "myfile.cal", index, 1)
-                    #pprint(self.co60_hist_list)
+                    print("Co60 lines:", self.co60_energy_vals)
+                    for my_channel in self.co60_hist_list:
+                        #pprint(my_channel)
+                        my_poly_fit = my_channel['poly_fit']
+                        #co60_poly_fit_func = np.poly1d(my_poly_fit[0])
+                        print("Poly fit 0:", my_poly_fit[0])
+                        for my_peak in my_channel['peak_info']:
+                            print("Center :", my_peak['fit_peak_center'], "FWHM (keV) :", my_peak['fit_peak_fwhm'] * my_poly_fit[0])
                 index = index + 1
             else:
                 print("index rejected due to too few events:", chan_dict_key)
@@ -239,7 +248,7 @@ class energy_calibration:
             my_title = "Eu152 Found Peaks for Calibration"
 
         chan_index = 0
-        print(hit_list)
+        #print(hit_list)
         fig, axs = plt.subplots(len(hit_list), squeeze=False, sharex=True, sharey=True)
 
         for my_chan in hit_list:

@@ -5,7 +5,7 @@
 import pandas as pd
 #import sys
 #from root_pandas import to_root # This is used for the to_root() method
-import numpy
+import numpy as np
 import csv
 
 
@@ -56,7 +56,13 @@ class output_handler:
         for dict_key in list(particle_events.keys()):
             if sum(particle_events[dict_key]) < 10:  # Git rid of any channel that is only noise, we define that as having fewer than 10 hits
                 del particle_events[dict_key]
+            else:
+                if len(particle_events[dict_key]) < 2**16:
+                    print("Too few in :", dict_key, "type:", type(particle_events[dict_key]))
+                    #particle_events[dict_key] += [0] * (2**16 - len(particle_events[dict_key]))
+                    particle_events[dict_key] = np.pad(particle_events[dict_key], (0,2**16-len(particle_events[dict_key])), mode='constant', constant_values=0)
                 #list(my_dict.items()),columns = ['Products','Prices']
+                print("Chan:", dict_key, "Len", len(particle_events[dict_key]))
         pd_particle_events = pd.DataFrame(particle_events)  # convert list of dict's into pandas dataframe
         print("Writing to file :", self.filename)
         pd_particle_events.to_csv(self.filename, sep='|', header=self.first_write, index=False, chunksize=50000, mode='w', encoding='utf-8')
@@ -79,9 +85,9 @@ class output_handler:
         import uproot
         print("going to open a root file!")
         self.file_handle = uproot.recreate(self.filename)
-        self.file_handle["EVENT_NTUPLE"] = uproot.newtree({"pulse_height": uproot.newbranch(numpy.dtype(">i8"), size="hit_count"),
-                                                           "chan": uproot.newbranch(numpy.dtype(">i8"), size="hit_count"),
-                                                           "timestamp": uproot.newbranch(numpy.dtype(">i8"))}, compression=None)
+        self.file_handle["EVENT_NTUPLE"] = uproot.newtree({"pulse_height": uproot.newbranch(np.dtype(">i8"), size="hit_count"),
+                                                           "chan": uproot.newbranch(np.dtype(">i8"), size="hit_count"),
+                                                           "timestamp": uproot.newbranch(np.dtype(">i8"))}, compression=None)
 
     # *************************************************************************************
     # write_particle_events()

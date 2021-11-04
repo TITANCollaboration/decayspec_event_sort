@@ -120,14 +120,26 @@ class event_handler:
                     ph_list_buffer[particle_hit['chan']].append(particle_hit['pulse_height'])
         # Now do np.histogram on each channel and sum the histograms I think
         for buffer_chan_key in ph_list_buffer.keys():
+            print("Buffer chan key", buffer_chan_key)
             ph_list_buffer[buffer_chan_key].sort()
+            print("Sorted list:", len(ph_list_buffer[buffer_chan_key]))
             #print("LArgest value:", ph_list_buffer[buffer_chan_key][-1])
             if buffer_chan_key not in self.histo_data_dict.keys():
                 self.histo_data_dict[buffer_chan_key] = np.zeros(1) # Create an array of a single 0 if no data exists yet for the channel
-        #    print("We get here..", ph_list_buffer[buffer_chan_key]
+            if buffer_chan_key < 100:  # We have a grif16 list, change max bin and num bins
+                if self.calibrate is False:
+                    my_num_of_bins = 2**13
+                    my_min_bin = 0
+                    my_max_bin = 2**13
+            else:
+                if self.calibrate is False:
+                    my_num_of_bins = 2**16
+                    my_min_bin = 0
+                    my_max_bin = 2**16
+
             self.histo_data_dict[buffer_chan_key] = np.histogram(ph_list_buffer[buffer_chan_key],
-                                                                 bins=self.num_of_bins,
-                                                                 range=(self.min_bin, self.max_bin))[0] + self.histo_data_dict[buffer_chan_key]
+                                                                 bins=my_num_of_bins,
+                                                                 range=(my_min_bin, my_max_bin))[0] + self.histo_data_dict[buffer_chan_key]
         #print(self.histo_data_dict[buffer_chan_key])
         return
 
