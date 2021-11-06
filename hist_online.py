@@ -15,20 +15,19 @@ def parse_and_run(args):
                                                   pulse_height_bin_min=int(args.pulse_height_bin_min),
                                                   pulse_height_bin_max=int(args.pulse_height_bin_max),
                                                   heatmap_type=args.heatmap_type)
-    #my_online_hist.display_heatmap()
+    # my_online_hist.display_heatmap()
     if args.heatmap_type == "voltage_v_time":
         my_online_hist.online_voltage_vs_time_heatmap()
     elif args.heatmap_type == "energy_v_time":
         my_online_hist.online_energy_vs_time_heatmap()
 
-    #print(my_online_hist.get_redis_hist_entry()['unix_ts_ms'])
-    #print(my_online_hist.get_redis_queue_length())
-    #print(my_online_hist.drain_redis_queue())
+    # print(my_online_hist.get_redis_hist_entry()['unix_ts_ms'])
+    # print(my_online_hist.get_redis_queue_length())
+    # print(my_online_hist.drain_redis_queue())
     return
 
 
 def main():
-
     parser = argparse.ArgumentParser(description='Histogram Generator')
 
     parser.add_argument('--redis_host', dest='redis_hostname', required=False,
