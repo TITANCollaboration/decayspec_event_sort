@@ -8,10 +8,10 @@
 import argparse
 from lib.midas_event_reader import midas_events
 
+
 # !!! Add in histogram data output to allow for smaller size data sets
 
 def main():
-
     parser = argparse.ArgumentParser(description='Midas Decay Spec Sorter')
 
     parser.add_argument('--midas_files', dest='midas_files', type=str, nargs='+', required=True,
@@ -36,9 +36,9 @@ def main():
                         help="Calibration file")
     parser.add_argument('--ppg_data_file', dest='ppg_data_file', required=False, default=None,
                         help="PPG Data file (csv)")
-    parser.add_argument('--ppg_value_range', dest='ppg_value_range', required=False, nargs='+', type=float, default=None,
+    parser.add_argument('--ppg_value_range', dest='ppg_value_range', required=False, nargs='+', type=float,
+                        default=None,
                         help="min and max values for ppg value to accept event (type: histo).  Ex: --ppg_value_range 1100 1200")
-
 
     args, unknown = parser.parse_known_args()
     print("PPG:", args.ppg_value_range)
@@ -54,8 +54,9 @@ def main():
                             ppg_data_file=args.ppg_data_file,
                             ppg_value_range=args.ppg_value_range,
                             bin_div=args.bin_div)
-    #my_midas.read_midas_events()
+    # my_midas.read_midas_events()
     my_midas.read_midas_files()
+
 
 if __name__ == "__main__":
     main()

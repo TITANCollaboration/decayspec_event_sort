@@ -144,6 +144,8 @@ class midas_events:
                 self.write_events_to_file = write_events_to_file_init_value
             my_midas_file[num] = file_reader.MidasFile(my_file)
             print(my_file)
+            odb_start = my_midas_file[num].get_bor_odb_dump()
+            pprint(odb_start.data["Runinfo"])
             self.read_midas_events(my_midas_file[num], myoutput, events)
         return
 
