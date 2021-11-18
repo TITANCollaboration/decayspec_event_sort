@@ -15,7 +15,7 @@ from pprint import pprint
 
 class midas_events:
 
-    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file=False, ppg_data_file=None, ppg_value_range=None, bin_div=1):
+    def __init__(self, event_length, sort_type, midas_files, output_file, output_format, cores, buffer_size, cal_file, write_events_to_file=False, ppg_data_file=None, ppg_value_range=None, bin_div=1, info_only=False):
         if cal_file:
             self.calibrate = True
         else:
@@ -30,6 +30,7 @@ class midas_events:
         self.output_format = output_format
         self.ppg_data_file = ppg_data_file
         self.ppg_value_range = ppg_value_range
+        self.info_only = info_only
         self.checkpoint_EOB_timestamp = 0
         self.entries_read_in_buffer = 0
         self.histo_dict = {}
@@ -144,11 +145,13 @@ class midas_events:
                 self.write_events_to_file = write_events_to_file_init_value
             my_midas_file[num] = file_reader.MidasFile(my_file)
             print(my_file)
-            odb_start = my_midas_file[num].get_bor_odb_dump()
-            odb_end = my_midas_file[num].get_eor_odb_dump()
-            print("Run Start Time : ", odb_start.data["Runinfo"]['Start time'])
-            pprint(odb_end["Runinfo"])
-            #print("Run End Time : ", odb_start.data["Runinfo"]['Stop time'])
+            if self.info_only == True:
+                odb_start = my_midas_file[num].get_bor_odb_dump()
+                odb_end = my_midas_file[num].get_eor_odb_dump()
+                print("Run # :", odb_start.data["Runinfo"]['Run number'])
+                print("Run Start Time : ", odb_start.data["Runinfo"]['Start time'])
+                print("Run End Time : ", odb_end.data["Runinfo"]['Stop time'])
+                exit(0)
             self.read_midas_events(my_midas_file[num], myoutput, events)
         return
 
