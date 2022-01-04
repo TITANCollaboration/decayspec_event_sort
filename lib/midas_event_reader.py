@@ -191,7 +191,7 @@ class midas_events:
 
             self.entries_read_in_buffer = self.entries_read_in_buffer + 1
 
-        if (len(self.particle_hits) > 0) or (self.sort_type == 'histos'):  # Check if we should sort and that there are hits to sort..
+        if (len(self.particle_hits) >= 0) or (self.sort_type == 'histos'):  # Check if we should sort and that there are hits to sort..
             print("Processing remaining events in queue...")
             if self.sort_type == 'event':
                 events.sort_events(self.event_queue, self.particle_hits)
