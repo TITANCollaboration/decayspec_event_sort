@@ -196,11 +196,9 @@ class midas_events:
             if self.sort_type == 'event':
                 events.sort_events(self.event_queue, self.particle_hits)
             elif self.sort_type == 'histo':
-                print(len(self.particle_hits),"blah blah")
                 events.sort_events(0, self.particle_hits)
                 self.particle_event_list = events.histo_data_dict
             elif self.sort_type == "raw":
-                print(len(self.particle_hits),"blah blah")
                 events.sort_events(0, self.particle_hits)
                 self.particle_event_list = self.particle_hits
             self.particle_event_list = self.check_and_write_queue(self.event_queue, self.particle_event_list, myoutput)
