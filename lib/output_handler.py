@@ -68,8 +68,11 @@ class output_handler:
         pd_particle_events.to_csv(self.filename, sep='|', header=self.first_write, index=False, chunksize=50000, mode='w', encoding='utf-8')
 
     def write_csv_file(self, particle_events):
-        # print("\nWriting to file :", self.filename)
-        column_names = particle_events[0].keys()
+        print("\nWriting to file :", self.filename)
+        try:
+            column_names = particle_events[0].keys()
+        except IndexError:
+            column_names = ['']
         mode_flag = 'a'
         if self.first_write is True:
             mode_flag = 'w'
