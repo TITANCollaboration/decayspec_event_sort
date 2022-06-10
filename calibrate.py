@@ -1,7 +1,7 @@
 # *************************************************************************************
 # * Written by : Jon Ringuette
 # * Started : January 13 2021 - Still during the plague..
-# * Purpose : Create histograms from output of decay spec sorter both raw and otherwise..
+# * Purpose :  Create calibration file for spectrum automagically for 60Co and 152Eu spectrum
 #  * Requirements : Python 3, matplotlib, probably something other stuff numpy,scipy...
 # *************************************************************************************
 import argparse
