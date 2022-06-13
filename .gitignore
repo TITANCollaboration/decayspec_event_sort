@@ -5,5 +5,4 @@ lib/__pycache__/*
 *.hist
 *.cal
 .DS_Store
-*.png
 *.txt
