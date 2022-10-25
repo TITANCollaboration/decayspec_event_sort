@@ -29,19 +29,19 @@ class event_handler:
         if self.ppg_data_file is not None:
             self.missed_hits_later = 0
             self.missed_hits_begin = 0
-            self.first_change_timestamp = {}
-            self.first_change_timestamp['mdpp16_timestamp'] = None
-            self.first_change_timestamp['grif16_timestamp'] = None
             print("Reading in PPG Data file:", self.ppg_data_file)
             csv_reader_object = input_handler(self.ppg_data_file)
             ppg_data_list_tmp = csv_reader_object.read_in_data(separator=',')
             self.ppg_data_list = ppg_data_list_tmp.to_dict('records')
             ppg_data_list_tmp = 0  # Just cleaning up the memory from the pandas df
-            for ppg_entry in self.ppg_data_list:  # Find first usable entry
-                if ppg_entry['ppg_action'] == "start":  # Make sure we are strting with a real start entry..
-                    self.first_change_timestamp['mdpp16_timestamp'] = ppg_entry['mdpp16_timestamp']  # Get the first timestamp listed in the ppg data file for each ADC
-                    self.first_change_timestamp['grif16_timestamp'] = ppg_entry['grif16_timestamp']
-                    break
+            overflow_mdpp16=False
+            for my_ppg_index in range(1, len(self.ppg_data_list)): #accounts for any overflow in 46 bit timestamps
+                if(((self.ppg_data_list[my_ppg_index-1]['mdpp16_timestamp']-self.ppg_data_list[my_ppg_index]['mdpp16_timestamp'])>>45)>0):
+                    overflow_mdpp16=True
+                if(overflow_mdpp16):
+                    self.ppg_data_list[my_ppg_index]['mdpp16_timestamp']+=2**46
+            self.current_ppg_data_time_index = 1 #keeps current status in ppg file accross files due to calls in mds_sort.py
+            self.overflow_mdpp16_hit = False
 
     def adc_name_from_channel(self, channel):
         adc_name = ""
@@ -57,31 +57,36 @@ class event_handler:
         #                          EBIT DT5 voltage values
         # Something like this but completely different:
         # ppg_data_list
-
-        current_ppg_data_time_index = 0
+        previous_mdpp16_timestamp=0
 
         for hit_event in particle_hit_list:
             ppg_match_found = False
             ppg_adc_timestamp_column = self.adc_name_from_channel(hit_event['chan']) + "_timestamp"  # determine which dict entry to use
-
+            #accounts for 46 bit timestamp overflow on mdpp16 (once every 50 days or so)
+            if(ppg_adc_timestamp_column=="mdpp16_timestamp"):
+                if(((previous_mdpp16_timestamp-hit_event['timestamp'])>>45)>0):
+                    self.overflow_mdpp16_hit=True
+                if(self.overflow_mdpp16_hit):
+                    hit_event['timestamp']+=2**46
+                previous_mdpp16_timestamp = hit_event['timestamp']
             # we might have collected data before the ppg started sending us data so set those ppg_value's to -1
-            if hit_event['timestamp'] < self.first_change_timestamp[ppg_adc_timestamp_column]:
+            if self.current_ppg_data_time_index==1 and hit_event['timestamp'] <= self.ppg_data_list[0][ppg_adc_timestamp_column]:
                 hit_event['ppg_value'] = -1
                 self.missed_hits_begin = self.missed_hits_begin + 1
                 continue
 
-            for my_ppg_index in range(current_ppg_data_time_index, len(self.ppg_data_list)):
+            for my_ppg_index in range(self.current_ppg_data_time_index, len(self.ppg_data_list)):
                 # Find first pairing, if its not a pairing then continue to incriment
-                if (self.ppg_data_list[my_ppg_index]['ppg_action'] != 'start') or (self.ppg_data_list[my_ppg_index+1]['ppg_action'] != 'end'):
+                if (self.ppg_data_list[my_ppg_index]['ppg_action'] != 'new_cycle'):
                     continue
                 # if both conditions met we have a ppg value
-                elif (hit_event['timestamp'] >= self.ppg_data_list[my_ppg_index][ppg_adc_timestamp_column]) and \
-                     (hit_event['timestamp'] <= self.ppg_data_list[my_ppg_index+1][ppg_adc_timestamp_column]):
+                elif (hit_event['timestamp'] > self.ppg_data_list[my_ppg_index-1][ppg_adc_timestamp_column]) and \
+                     (hit_event['timestamp'] <= self.ppg_data_list[my_ppg_index][ppg_adc_timestamp_column]):
 
-                    hit_event['ppg_value'] = self.ppg_data_list[my_ppg_index]['ppg_value']
+                    hit_event['ppg_value'] = self.ppg_data_list[my_ppg_index-1]['ppg_demand_value']
                 #    print("Hit TS:", hit_event['timestamp'], "PPG Start TS:", self.ppg_data_list[my_ppg_index][ppg_adc_timestamp_column], "PPG END TS:", self.ppg_data_list[my_ppg_index+1][ppg_adc_timestamp_column], "PPG Value:", self.ppg_data_list[my_ppg_index]['ppg_value'])
                     ppg_match_found = True
-                    current_ppg_data_time_index = my_ppg_index  # Set it so that we start looking at this time next time, may take this out if we get a lot of OfO events?
+                    self.current_ppg_data_time_index = my_ppg_index  # Set it so that we start looking at this time next time, may take this out if we get a lot of OfO events?
                     break
             if ppg_match_found is not True:
                 hit_event['ppg_value'] = -1
