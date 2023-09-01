@@ -84,8 +84,8 @@ class midas_events:
                 else:
                     self.bad_packet = self.bad_packet + 1
             self.total_hits = self.total_hits + len(particle_hit)
-        #    if len(particle_hit) > 1:
-        #        print("Len:", particle_hit)
+            #if len(particle_hit) > 1:
+            #    print("Len:", particle_hit)
         return particle_hit
 
     def check_and_write_queue(self, event_queue, particle_event_list, myoutput):
@@ -162,9 +162,13 @@ class midas_events:
                 particle_hit = []
                 if bank_name == "MDPP":  # Check if this is an event from the MDPP16
                 #    total_events = total_events + 1
+                    #print("start MDPP word")
                     particle_hit = self.decode_raw_hit_event(mdpp16.read_all_bank_events, bank.data)
                 elif bank_name == "GRF4":  # Check if this is an event from the GRIF16
                     particle_hit = self.decode_raw_hit_event(grif16.read_all_bank_events, bank.data)
+
+                #else:
+                   # print("Error")
 
                 if particle_hit:
                     self.particle_hits.extend(particle_hit)
@@ -190,7 +194,6 @@ class midas_events:
                         exit(1)
 
             self.entries_read_in_buffer = self.entries_read_in_buffer + 1
-
         if (len(self.particle_hits) >= 0) or (self.sort_type == 'histos'):  # Check if we should sort and that there are hits to sort..
             print("Processing remaining events in queue...")
             if self.sort_type == 'event':

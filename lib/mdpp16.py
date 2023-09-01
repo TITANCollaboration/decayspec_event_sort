@@ -39,7 +39,6 @@ def read_footer(word_data):
     else:
         return 0
 
-
 def read_words_for_events(bank_data, show_event=True, bin_div=1):
     #  I think I'm going to read these things in pairs as that is what they are.. besides the footer.  I will check
     #  that in the read_all_bank_events
@@ -56,9 +55,19 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
     flags = 0  # Setting to 1 to match the pileup flag for the grif16, it means nothing here
     myparticle_events = []
 
+    count = 0
+    show_event = False
+
     for current_word in range(0, len(bank_data)):
         data_sig = (bank_data[current_word] >> 30) & 0x3
         sub_header = (bank_data[current_word] >> 28) & 0xF
+
+        trigchan = (bank_data[current_word] >> 16) & 0x3F
+        #print("sub-head: ", sub_header, "trigchan: ", trigchan)
+        #if((bank_data[current_word] >> 16) & 0x3F == 32 and data_sig == 0): 
+        #if(bank_data[current_word]>0): print(format(bank_data[current_word],'032b'))
+        #print((bank_data[current_word] >> 16) & 0x3F)
+
         if bank_data[current_word] == 4294967295:  # This is all 1's and seems to just be a filler event so disgard
             continue
         if bank_data[current_word] == 0:
@@ -84,7 +93,20 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
                     myparticle_events.append({"chan": (chan + MDPP16_CHAN_PREFIX), "pulse_height": new_pulse_height})
                     #print(str(trigchan) + "," + str(chan) + "," + str(flags) + "," + str(new_pulse_height))
                     event_count = event_count + 1
+                    #print(current_word, " ", chan)
+            elif trigchan >= MAX_MDPP16_CHANNELS and trigchan < 32:
+                #TDC time difference data
+                continue
+            elif trigchan > 31: #trigger input event
+                myparticle_events.append({"chan": (trigchan + MDPP16_CHAN_PREFIX), "pulse_height": (bank_data[current_word] >> 0) & 0xFFFF})
+                #print("     Sig : %i,  Sub: %i, Channel : %i, - trigChan: %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, sub_header, chan, trigchan, adc_value, tdc_value))
+                #print("Timestamp:", timestamp, "Low:", low_ts, "High:", high_ts)
+                event_count = event_count + 1
+                #print(current_word, " ", trigchan)
+   
+                continue
             else:
+                print("Can't determine channel number in data")
                 continue
 
         elif sub_header == 2:
@@ -100,7 +122,7 @@ def read_words_for_events(bank_data, show_event=True, bin_div=1):
     if show_event is True:
         print("   ----Event----")
         print("     Sig : %i,  Sub: %i, Channel : %i, - trigChan: %i, - ADC Value : %i  - TDC Value : %i" % (data_sig, sub_header, chan, trigchan, adc_value, tdc_value))
-    #print("Timestamp:", timestamp, "Low:", low_ts, "High:", high_ts)
+        print("Timestamp:", timestamp, "Low:", low_ts, "High:", high_ts)
     if timestamp != -1:
         return myparticle_events, timestamp, event_count
     else:
